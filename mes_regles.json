@@ -1,0 +1,32 @@
+{
+  "simple_rules": [
+    {
+      "id": "rule_1_1754052246",
+      "column": "A",
+      "rule_type": "NotBlank",
+      "params": {
+        "trim": false
+      },
+      "message": "",
+      "active": true,
+      "created_at": "2025-08-01T14:44:06.982296"
+    },
+    {
+      "id": "rule_2_1754052255",
+      "column": "B",
+      "rule_type": "NotBlank",
+      "params": {
+        "trim": false
+      },
+      "message": "",
+      "active": true,
+      "created_at": "2025-08-01T14:44:15.823530"
+    }
+  ],
+  "conditional_rules": [],
+  "metadata": {
+    "created_at": "2025-08-01T14:43:31.166213",
+    "version": "1.0",
+    "last_modified": "2025-08-01T14:44:15.823530"
+  }
+}

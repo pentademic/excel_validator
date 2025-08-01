@@ -1,7 +1,0 @@
-/excel_validator.iml
-*.pyc
-dist/*
-env/*
-/build
-.idea/*
-excel_validator.spec
