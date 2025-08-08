@@ -7,31 +7,36 @@ from openpyxl.styles import PatternFill
 from openpyxl.utils import get_column_letter
 from typing import Dict, List, Tuple, Any, Optional
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from validate_email import validate_email
 import pycountry
 
 class ValidationError:
     """Classe pour représenter une erreur de validation"""
-    def __init__(self, row: int, column: str, message: str, value: Any = None):
+    def __init__(self, row: int, columns: List[str], message: str, values: List[Any] = None):
         self.row = row
-        self.column = column
+        self.columns = columns if isinstance(columns, list) else [columns]
         self.message = message
-        self.value = value
-        self.coordinate = f"{column}{row}"
+        self.values = values or []
+        self.coordinate = "+".join([f"{col}{row}" for col in self.columns])
+        # Pour compatibilité avec l'ancienne structure
+        self.column = self.columns[0] if self.columns else "A"
+        self.value = self.values[0] if self.values else None
 
 class ExcelValidatorCore:
-    """Validateur Excel principal"""
+    """Validateur Excel principal avec support multicolonne"""
     
     def __init__(self):
         self.errors: List[ValidationError] = []
         self.worksheet_data = {}  # Cache des données pour les règles conditionnelles
+        self.multicolumn_cache = {}  # Cache pour les combinaisons de colonnes
     
     def validate_file(self, file_path: str, rules_config: Dict[str, Any], 
                      sheet_name: str = None) -> Tuple[bool, List[ValidationError], str]:
         """Valide un fichier Excel selon les règles fournies"""
         self.errors = []
         self.worksheet_data = {}
+        self.multicolumn_cache = {}
         
         try:
             wb = load_workbook(file_path, data_only=True, read_only=True)
@@ -41,7 +46,7 @@ class ExcelValidatorCore:
             else:
                 ws = wb.active
             
-            # Charger toutes les données en mémoire pour les règles conditionnelles
+            # Charger toutes les données en mémoire
             self._load_worksheet_data(ws)
             
             validators = rules_config.get("validators", {}).get("columns", {})
@@ -49,12 +54,16 @@ class ExcelValidatorCore:
             excludes = rules_config.get("excludes", [])
             header_row = rules_config.get("header", True)
             conditional_rules = rules_config.get("conditional_rules", [])
+            multicolumn_rules = rules_config.get("multicolumn_rules", [])  # Nouvelle section
             
             # Validation des règles simples
             self._validate_worksheet(ws, validators, default_validator, excludes, header_row)
             
             # Validation des règles conditionnelles
             self._validate_conditional_rules(conditional_rules)
+            
+            # Validation des règles multicolonnes
+            self._validate_multicolumn_rules(multicolumn_rules)
             
             error_file_path = None
             if self.errors:
@@ -64,8 +73,366 @@ class ExcelValidatorCore:
             return len(self.errors) == 0, self.errors, error_file_path
             
         except Exception as e:
-            error = ValidationError(0, "A", f"Erreur lors de la lecture du fichier: {str(e)}")
+            error = ValidationError(0, ["A"], f"Erreur lors de la lecture du fichier: {str(e)}")
             return False, [error], None
+    
+    def _validate_multicolumn_rules(self, multicolumn_rules: List[Dict]):
+        """Valide les règles multicolonnes"""
+        for rule in multicolumn_rules:
+            rule_id = rule.get("id", "unknown")
+            columns = rule.get("columns", [])
+            rule_type = rule.get("rule_type", "")
+            params = rule.get("params", {})
+            message = rule.get("message", f"Erreur règle multicolonne {rule_type}")
+            
+            # Valider chaque ligne
+            for row_idx, row_data in self.worksheet_data.items():
+                if row_idx == 1:  # Skip header
+                    continue
+                    
+                # Récupérer les valeurs des colonnes concernées
+                values = []
+                for col in columns:
+                    values.append(row_data.get(col))
+                
+                # Appliquer la validation selon le type de règle
+                is_valid = self._validate_multicolumn_rule(rule_type, columns, values, params, row_idx)
+                
+                if not is_valid:
+                    error = ValidationError(row_idx, columns, message, values)
+                    self.errors.append(error)
+    
+    def _validate_multicolumn_rule(self, rule_type: str, columns: List[str], values: List[Any], 
+                                 params: Dict, row_idx: int) -> bool:
+        """Valide une règle multicolonne spécifique"""
+        try:
+            if rule_type == "sum_equals":
+                return self._validate_sum_equals(values, params)
+            elif rule_type == "sum_range":
+                return self._validate_sum_range(values, params)
+            elif rule_type == "date_before":
+                return self._validate_date_before(values)
+            elif rule_type == "date_after":
+                return self._validate_date_after(values)
+            elif rule_type == "date_range":
+                return self._validate_date_range(values, params)
+            elif rule_type == "percentage_of":
+                return self._validate_percentage_of(values, params)
+            elif rule_type == "all_or_none":
+                return self._validate_all_or_none(values)
+            elif rule_type == "unique_combination":
+                return self._validate_unique_combination(columns, values, params, row_idx)
+            elif rule_type == "conditional_sum":
+                return self._validate_conditional_sum(columns, values, params, row_idx)
+            elif rule_type == "max_min_check":
+                return self._validate_max_min_check(values, params)
+            
+            return True
+            
+        except Exception as e:
+            print(f"Erreur validation multicolonne {rule_type}: {e}")
+            return False
+    
+    def _validate_sum_equals(self, values: List[Any], params: Dict) -> bool:
+        """Valide que la somme des colonnes source égale la colonne cible"""
+        try:
+            target_column = params.get("target_column", "")
+            if not target_column:
+                return True
+                
+            # Les colonnes source sont toutes sauf la cible
+            source_values = values[:-1]  # Toutes sauf la dernière (cible)
+            target_value = values[-1]    # La dernière est la cible
+            
+            # Convertir en nombres
+            source_nums = []
+            for val in source_values:
+                if val is None or val == "":
+                    source_nums.append(0)
+                else:
+                    source_nums.append(float(val))
+            
+            if target_value is None or target_value == "":
+                target_num = 0
+            else:
+                target_num = float(target_value)
+            
+            calculated_sum = sum(source_nums)
+            tolerance = params.get("tolerance", 0.01)
+            
+            return abs(calculated_sum - target_num) <= tolerance
+            
+        except (ValueError, TypeError):
+            return False
+    
+    def _validate_sum_range(self, values: List[Any], params: Dict) -> bool:
+        """Valide que la somme des colonnes est dans une plage"""
+        try:
+            min_value = params.get("min_value", 0)
+            max_value = params.get("max_value", float('inf'))
+            
+            nums = []
+            for val in values:
+                if val is None or val == "":
+                    nums.append(0)
+                else:
+                    nums.append(float(val))
+            
+            total_sum = sum(nums)
+            return min_value <= total_sum <= max_value
+            
+        except (ValueError, TypeError):
+            return False
+    
+    def _validate_date_before(self, values: List[Any]) -> bool:
+        """Valide que la première date est antérieure à la seconde"""
+        if len(values) < 2:
+            return True
+            
+        try:
+            date1 = self._parse_date(values[0])
+            date2 = self._parse_date(values[1])
+            
+            if date1 is None or date2 is None:
+                return True  # Ne pas valider si les dates sont manquantes
+                
+            return date1 < date2
+            
+        except Exception:
+            return False
+    
+    def _validate_date_after(self, values: List[Any]) -> bool:
+        """Valide que la première date est postérieure à la seconde"""
+        if len(values) < 2:
+            return True
+            
+        try:
+            date1 = self._parse_date(values[0])
+            date2 = self._parse_date(values[1])
+            
+            if date1 is None or date2 is None:
+                return True
+                
+            return date1 > date2
+            
+        except Exception:
+            return False
+    
+    def _validate_date_range(self, values: List[Any], params: Dict) -> bool:
+        """Valide que l'écart entre deux dates est dans une plage"""
+        if len(values) < 2:
+            return True
+            
+        try:
+            date1 = self._parse_date(values[0])
+            date2 = self._parse_date(values[1])
+            
+            if date1 is None or date2 is None:
+                return True
+                
+            min_days = params.get("min_days", 0)
+            max_days = params.get("max_days", 365)
+            
+            diff = abs((date2 - date1).days)
+            return min_days <= diff <= max_days
+            
+        except Exception:
+            return False
+    
+    def _validate_percentage_of(self, values: List[Any], params: Dict) -> bool:
+        """Valide qu'une valeur représente un pourcentage d'une autre"""
+        if len(values) < 2:
+            return True
+            
+        try:
+            value1 = float(values[0]) if values[0] not in [None, ""] else 0
+            value2 = float(values[1]) if values[1] not in [None, ""] else 0
+            
+            if value2 == 0:
+                return value1 == 0
+                
+            expected_percentage = params.get("percentage", 0) / 100.0
+            tolerance = params.get("tolerance", 0.05)  # 5% de tolérance par défaut
+            
+            actual_percentage = value1 / value2
+            expected_value = value2 * expected_percentage
+            
+            return abs(value1 - expected_value) <= (value2 * tolerance)
+            
+        except (ValueError, TypeError, ZeroDivisionError):
+            return False
+    
+    def _validate_all_or_none(self, values: List[Any]) -> bool:
+        """Valide que toutes les valeurs sont remplies ou toutes vides"""
+        non_empty_count = 0
+        for val in values:
+            if val is not None and str(val).strip() != "":
+                non_empty_count += 1
+        
+        # Soit toutes vides (0) soit toutes remplies (len(values))
+        return non_empty_count == 0 or non_empty_count == len(values)
+    
+    def _validate_unique_combination(self, columns: List[str], values: List[Any], 
+                                   params: Dict, current_row: int) -> bool:
+        """Valide que la combinaison des valeurs est unique"""
+        case_sensitive = params.get("case_sensitive", True)
+        
+        # Créer la clé de combinaison
+        combination_key = tuple(columns)
+        if combination_key not in self.multicolumn_cache:
+            self.multicolumn_cache[combination_key] = {}
+        
+        # Normaliser les valeurs
+        normalized_values = []
+        for val in values:
+            if val is None:
+                normalized_values.append("")
+            else:
+                str_val = str(val)
+                if not case_sensitive:
+                    str_val = str_val.lower()
+                normalized_values.append(str_val)
+        
+        combination_value = tuple(normalized_values)
+        
+        # Vérifier l'unicité
+        for row_idx, row_data in self.worksheet_data.items():
+            if row_idx == current_row or row_idx == 1:  # Skip current row and header
+                continue
+            
+            other_values = []
+            for col in columns:
+                other_val = row_data.get(col)
+                if other_val is None:
+                    other_values.append("")
+                else:
+                    str_val = str(other_val)
+                    if not case_sensitive:
+                        str_val = str_val.lower()
+                    other_values.append(str_val)
+            
+            other_combination = tuple(other_values)
+            
+            if combination_value == other_combination:
+                return False
+        
+        return True
+    
+    def _validate_conditional_sum(self, columns: List[str], values: List[Any], 
+                                params: Dict, row_idx: int) -> bool:
+        """Valide une somme conditionnelle"""
+        condition_column = params.get("condition_column", "")
+        condition_value = params.get("condition_value", "")
+        operator = params.get("operator", "greater_than")
+        target_value = params.get("target_value", 0)
+        
+        if not condition_column:
+            return True
+            
+        # Vérifier la condition
+        condition_cell_value = self.worksheet_data.get(row_idx, {}).get(condition_column)
+        
+        if str(condition_cell_value) != str(condition_value):
+            return True  # Condition non remplie, pas d'erreur
+        
+        # Calculer la somme
+        try:
+            nums = []
+            for val in values:
+                if val is None or val == "":
+                    nums.append(0)
+                else:
+                    nums.append(float(val))
+            
+            total_sum = sum(nums)
+            target_num = float(target_value)
+            
+            if operator == "greater_than":
+                return total_sum > target_num
+            elif operator == "less_than":
+                return total_sum < target_num
+            elif operator == "equals":
+                return abs(total_sum - target_num) <= 0.01
+            elif operator == "greater_equal":
+                return total_sum >= target_num
+            elif operator == "less_equal":
+                return total_sum <= target_num
+            
+        except (ValueError, TypeError):
+            return False
+            
+        return True
+    
+    def _validate_max_min_check(self, values: List[Any], params: Dict) -> bool:
+        """Valide qu'une colonne contient le max/min des autres"""
+        operation = params.get("operation", "max").lower()
+        target_column = params.get("target_column", "last")
+        
+        if len(values) < 2:
+            return True
+            
+        try:
+            # Séparer la valeur cible des valeurs source
+            if target_column == "last":
+                source_values = values[:-1]
+                target_value = values[-1]
+            elif target_column == "first":
+                source_values = values[1:]
+                target_value = values[0]
+            else:
+                # Utiliser toutes les valeurs comme source et cible
+                source_values = values
+                target_value = values[0]
+            
+            # Convertir en nombres
+            source_nums = []
+            for val in source_values:
+                if val is not None and val != "":
+                    source_nums.append(float(val))
+            
+            if not source_nums:
+                return True
+                
+            if target_value is None or target_value == "":
+                return False
+                
+            target_num = float(target_value)
+            
+            if operation == "max":
+                expected = max(source_nums)
+            elif operation == "min":
+                expected = min(source_nums)
+            else:
+                return True
+                
+            tolerance = params.get("tolerance", 0.01)
+            return abs(target_num - expected) <= tolerance
+            
+        except (ValueError, TypeError):
+            return False
+    
+    def _parse_date(self, value: Any) -> Optional[datetime]:
+        """Parse une valeur en date"""
+        if value is None or value == "":
+            return None
+            
+        if isinstance(value, datetime):
+            return value
+            
+        if isinstance(value, str):
+            # Essayer différents formats de date
+            date_formats = [
+                "%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", 
+                "%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M:%S"
+            ]
+            
+            for fmt in date_formats:
+                try:
+                    return datetime.strptime(value, fmt)
+                except ValueError:
+                    continue
+                    
+        return None
     
     def _load_worksheet_data(self, ws):
         """Charge toutes les données de la feuille en mémoire"""
@@ -118,7 +485,7 @@ class ExcelValidatorCore:
                         
                         cell_value = row_data.get(action_column)
                         if not self._validate_action(cell_value, action_type, action_params):
-                            error = ValidationError(row_idx, action_column, message, cell_value)
+                            error = ValidationError(row_idx, [action_column], message, [cell_value])
                             self.errors.append(error)
     
     def _evaluate_condition(self, cell_value: Any, operator: str, compare_value: str) -> bool:
@@ -246,11 +613,11 @@ class ExcelValidatorCore:
                 is_valid = self._validate_duplicate(value, column, row, rule_params)
             
             if not is_valid:
-                error = ValidationError(row, column, error_message, value)
+                error = ValidationError(row, [column], error_message, [value])
                 self.errors.append(error)
                 
         except Exception as e:
-            error = ValidationError(row, column, f"Erreur lors de la validation: {str(e)}", value)
+            error = ValidationError(row, [column], f"Erreur lors de la validation: {str(e)}", [value])
             self.errors.append(error)
     
     def _validate_not_blank(self, value: Any, params: Dict) -> bool:
@@ -401,11 +768,18 @@ class ExcelValidatorCore:
             ws = wb.active if ws is None else wb[ws.title]
             
             red_fill = PatternFill(start_color='FFFF0000', end_color='FFFF0000', fill_type='solid')
+            orange_fill = PatternFill(start_color='FFFFA500', end_color='FFFFA500', fill_type='solid')
             
             for error in errors:
                 try:
-                    cell = ws[error.coordinate]
-                    cell.fill = red_fill
+                    # Marquer toutes les cellules concernées
+                    for column in error.columns:
+                        cell = ws[f"{column}{error.row}"]
+                        # Rouge pour erreurs simples, orange pour erreurs multicolonnes
+                        if len(error.columns) > 1:
+                            cell.fill = orange_fill
+                        else:
+                            cell.fill = red_fill
                 except:
                     continue
             
@@ -419,16 +793,19 @@ class ExcelValidatorCore:
     def get_errors_as_dataframe(self) -> pd.DataFrame:
         """Retourne les erreurs sous forme de DataFrame"""
         if not self.errors:
-            return pd.DataFrame(columns=["Ligne", "Colonne", "Coordonnée", "Message", "Valeur"])
+            return pd.DataFrame(columns=["Ligne", "Colonne(s)", "Coordonnée", "Message", "Valeur(s)"])
         
         data = []
         for error in self.errors:
+            columns_str = ", ".join(error.columns)
+            values_str = ", ".join([str(v) if v is not None else "" for v in error.values])
+            
             data.append({
                 "Ligne": error.row,
-                "Colonne": error.column,
+                "Colonne(s)": columns_str,
                 "Coordonnée": error.coordinate,
                 "Message": error.message,
-                "Valeur": str(error.value) if error.value is not None else ""
+                "Valeur(s)": values_str
             })
         
         return pd.DataFrame(data)
@@ -443,13 +820,24 @@ class ExcelValidatorCore:
             }
         
         error_by_type = {}
+        multicolumn_errors = 0
+        simple_errors = 0
+        
         for error in self.errors:
-            error_type = error.message.split(":")[0] if ":" in error.message else "Erreur générale"
+            if len(error.columns) > 1:
+                multicolumn_errors += 1
+                error_type = f"Erreur multicolonne ({len(error.columns)} colonnes)"
+            else:
+                simple_errors += 1
+                error_type = error.message.split(":")[0] if ":" in error.message else "Erreur simple"
+            
             error_by_type[error_type] = error_by_type.get(error_type, 0) + 1
         
         return {
             "status": "error",
             "total_errors": len(self.errors),
+            "simple_errors": simple_errors,
+            "multicolumn_errors": multicolumn_errors,
             "errors_by_type": error_by_type,
-            "message": f"❌ {len(self.errors)} erreur(s) détectée(s)"
+            "message": f"❌ {len(self.errors)} erreur(s) détectée(s) ({simple_errors} simples, {multicolumn_errors} multicolonnes)"
         }
