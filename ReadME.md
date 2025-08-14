@@ -1,9 +1,11 @@
-⚡ Démarrage Rapide – Excel Validator Pro
-🚀 Installation en 3 étapes
-1️⃣ Créer les fichiers
+# ⚡ Excel Validator Pro
 
-Créez un dossier excel_validator_pro et copiez les fichiers fournis :
+## 🚀 Installation en 3 étapes
 
+### 1️⃣ Créer les fichiers
+Créez un dossier `excel_validator_pro` et copiez les fichiers fournis :
+
+```
 excel_validator_pro/
 ├── rules_manager.py          # Gestion des règles (simples, conditionnelles, multicolonnes)
 ├── excel_validator_core.py   # Moteur de validation Excel
@@ -12,127 +14,109 @@ excel_validator_pro/
 ├── requirements.txt          # Dépendances Python
 ├── README.md                 # Documentation
 ├── lancer_app.bat            # Script Windows
-└── lancer_app.sh             # Script Linux/Mac
+```
 
-2️⃣ Installer les dépendances
+### 2️⃣ Installer les dépendances
+```bash
 cd excel_validator_pro
 pip install -r requirements.txt
+```
 
-3️⃣ Lancer l'application
+### 3️⃣ Lancer l'application
+```bash
 python app.py
+```
 
+🌐 **L'application s'ouvre sur** [http://localhost:7860](http://localhost:7860)
 
-🌐 L'application s'ouvre sur http://localhost:7860
+---
 
-📋 Test rapide
-1. Créer une règle simple
+## 📋 Test rapide
 
-Onglet "Créer des Règles" → "Règles Simples" → "Une colonne"
+### 1. Créer une règle simple
+- Onglet **"Créer des Règles"** → **"Règles Simples"** → **"Une colonne"**
+- Colonne : `A`
+- Type : `Ne pas être vide`
+- Message : `La colonne A est obligatoire`
+- Cliquez sur **Créer la règle**
 
-Colonne : A
+### 2. Créer une règle conditionnelle
+- Onglet **"Créer des Règles"** → **"Règles Conditionnelles"**
+- **Condition** : Colonne `B` = `VIP`
+- **Action** : Colonne `C` ne doit pas être vide
+- Message : `Les clients VIP doivent avoir un montant`
+- Cliquez sur **Créer la règle conditionnelle**
 
-Type : Ne pas être vide
+### 3. Créer une règle multicolonne
+- Onglet **"Créer des Règles"** → **"Règles Multicolonnes"**
+- Colonnes : `A,B,C`
+- Type : `Somme égale (A + B = C)`
+- Tolérance : `0.01`
+- Message : `La somme est incorrecte`
+- Cliquez sur **Créer la règle multicolonne**
 
-Message : La colonne A est obligatoire
-
-Créer la règle
-
-2. Créer une règle conditionnelle
-
-Onglet "Créer des Règles" → "Règles Conditionnelles"
-
-Condition : Colonne B = VIP
-
-Action : Colonne C ne doit pas être vide
-
-Message : Les clients VIP doivent avoir un montant
-
-Créer la règle conditionnelle
-
-3. Créer une règle multicolonne
-
-Onglet "Créer des Règles" → "Règles Multicolonnes"
-
-Colonnes : A,B,C
-
-Type : Somme égale (A + B = C)
-
-Tolérance : 0.01
-
-Message : La somme est incorrecte
-
-Créer la règle multicolonne
-
-4. Tester avec un fichier Excel
-
-Fichier exemple :
-
+### 4. Tester avec un fichier Excel
+**Fichier exemple** :
+```
 A    | B    | C
 -----+------+-----
 John | VIP  | 1000
      | VIP  |     
 Jane | STD  | 500
+```
 
+**Résultats attendus** :
+- Ligne 2, Colonne A → "La colonne A est obligatoire"
+- Ligne 2, Colonne C → "Les clients VIP doivent avoir un montant"
 
-Validation :
+---
 
-Ligne 2, Colonne A → "La colonne A est obligatoire"
+## 🎯 Fonctionnalités principales
 
-Ligne 2, Colonne C → "Les clients VIP doivent avoir un montant"
+### 📝 Règles simples (1 colonne)
+- **NotBlank**
+- **Length**
+- **Type**
+- **Regex**
+- **Email**
+- **Choice**
+- **Country**
+- **Date**
+- **Comparison**
+- **Duplicate**
 
-🎯 Fonctionnalités principales
-📝 Règles simples (1 colonne)
+### 📊 Règles simples multicolonnes
+- Appliquer un même type de règle simple à plusieurs colonnes à la fois.
 
-NotBlank, Length, Type, Regex, Email, Choice, Country, Date, Comparison, Duplicate
+### 🔗 Règles conditionnelles
+- Combiner plusieurs conditions (**ET** / **OU**) et exécuter des actions si elles sont remplies.
+- Compatible avec **noms de colonnes** ou **lettres de colonnes** (A, B…).
 
-📊 Règles simples multicolonnes
+### 🔢 Règles multicolonnes
+- **Somme égale** : `A + B = C`
+- **Somme dans une plage** : min/max
+- **Comparaison de dates** : `<` ou `>`
+- **Écart de dates** : min/max jours
+- **Pourcentage de** : `A = x% de B` (± tolérance)
+- **Tout ou rien** : toutes vides ou toutes remplies
+- **Combinaison unique** : valeurs uniques sur un ensemble de colonnes
+- **Somme conditionnelle** : somme > / < / = si condition remplie
+- **Max/Min** : vérifie si une colonne contient le max/min des autres
 
-Appliquer un même type de règle simple à plusieurs colonnes à la fois.
+### 📂 Gestion des règles
+- Activation / désactivation
+- Suppression
+- Sauvegarde dans `rules.json`
+- Rechargement automatique au démarrage
 
-🔗 Règles conditionnelles
+### 📑 Résultats
+- Rapport détaillé dans un fichier Excel annoté
+- Export CSV des erreurs
 
-Combiner plusieurs conditions (ET / OU) et exécuter des actions si elles sont remplies.
+---
 
-Compatible avec noms de colonnes ou lettres de colonnes (A, B…).
+## 💡 Bonnes pratiques
+- **Sauvegardez vos règles** après création pour qu’elles soient appliquées lors de la validation.
+- Si vos conditions utilisent des **noms de colonnes**, assurez-vous que la première ligne de votre Excel est l’en-tête.
 
-🔢 Règles multicolonnes
-
-Somme égale : A + B = C
-
-Somme dans une plage : min/max
-
-Comparaison de dates : < ou >
-
-Écart de dates : min/max jours
-
-Pourcentage de : A = x% de B (± tolérance)
-
-Tout ou rien : toutes vides ou toutes remplies
-
-Combinaison unique : valeurs uniques sur un ensemble de colonnes
-
-Somme conditionnelle : somme > / < / = si condition remplie
-
-Max/Min : vérifie si une colonne contient le max/min des autres
-
-📂 Gestion des règles
-
-Activation/désactivation
-
-Suppression
-
-Sauvegarde dans rules.json
-
-Rechargement automatique au démarrage
-
-📑 Résultats
-
-Rapport détaillé dans un fichier Excel annoté
-
-Export CSV des erreurs
-
-💡 Bonnes pratiques
-
-Sauvegardez vos règles après création pour qu’elles soient appliquées lors de la validation.
-
-Si vos conditions utilisent des noms de colonnes, assurez-vous que la première ligne de votre Excel est l’en-tête.
+---
