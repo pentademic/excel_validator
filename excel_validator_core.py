@@ -55,9 +55,13 @@ class ExcelValidatorCore:
             header_row = rules_config.get("header", True)
             conditional_rules = rules_config.get("conditional_rules", [])
             multicolumn_rules = rules_config.get("multicolumn_rules", [])  # Nouvelle section
-            
+            multi_simple_rules = rules_config.get("multi_simple_rules", [])
+
             # Validation des règles simples
             self._validate_worksheet(ws, validators, default_validator, excludes, header_row)
+            
+            # NOUVEAU: Validation des règles simples multicolonnes
+            self._validate_multi_simple_rules(multi_simple_rules)
             
             # Validation des règles conditionnelles
             self._validate_conditional_rules(conditional_rules)
@@ -76,6 +80,67 @@ class ExcelValidatorCore:
             error = ValidationError(0, ["A"], f"Erreur lors de la lecture du fichier: {str(e)}")
             return False, [error], None
     
+    def _validate_multi_simple_rules(self, multi_simple_rules: List[Dict]):
+        """Valide les règles simples appliquées à plusieurs colonnes"""
+        for rule in multi_simple_rules:
+            rule_id = rule.get("id", "unknown")
+            columns = rule.get("columns", [])
+            rule_type = rule.get("rule_type", "")
+            params = rule.get("params", {})
+            message = rule.get("message", f"Erreur règle simple multicolonne {rule_type}")
+            
+            # Valider chaque ligne pour chaque colonne concernée
+            for row_idx, row_data in self.worksheet_data.items():
+                if row_idx == 1:  # Skip header
+                    continue
+                
+                # Vérifier chaque colonne de la règle
+                for column in columns:
+                    value = row_data.get(column)
+                    
+                    # Appliquer la même logique que pour les règles simples
+                    is_valid = self._validate_simple_rule_value(value, rule_type, params)
+                    
+                    if not is_valid:
+                        error = ValidationError(row_idx, [column], message, [value])
+                        self.errors.append(error) 
+
+    def _validate_simple_rule_value(self, value: Any, rule_type: str, params: Dict) -> bool:
+        """Valide une valeur selon une règle simple (réutilise la logique existante)"""
+        try:
+            # Appliquer le trim si nécessaire
+            if params.get("trim", False) and isinstance(value, str):
+                value = value.strip()
+            
+            if rule_type == "NotBlank":
+                return self._validate_not_blank(value, params)
+            elif rule_type == "Length":
+                return self._validate_length(value, params)
+            elif rule_type == "Type":
+                return self._validate_type(value, params)
+            elif rule_type == "Regex":
+                return self._validate_regex(value, params)
+            elif rule_type == "Email":
+                return self._validate_email(value, params)
+            elif rule_type == "Choice":
+                return self._validate_choice(value, params)
+            elif rule_type == "Country":
+                return self._validate_country(value, params)
+            elif rule_type == "Date" or rule_type == "ExcelDate":
+                return self._validate_date(value, params)
+            elif rule_type == "Comparison":
+                return self._validate_comparison(value, params)
+            elif rule_type == "Duplicate":
+                # Pour les doublons sur plusieurs colonnes, on ne peut pas utiliser la même logique
+                # On pourrait implémenter une logique spécifique si nécessaire
+                return True
+            
+            return True
+            
+        except Exception as e:
+            print(f"Erreur validation règle simple {rule_type}: {e}")
+            return False
+
     def _validate_multicolumn_rules(self, multicolumn_rules: List[Dict]):
         """Valide les règles multicolonnes"""
         for rule in multicolumn_rules:
@@ -822,11 +887,15 @@ class ExcelValidatorCore:
         error_by_type = {}
         multicolumn_errors = 0
         simple_errors = 0
+        multi_simple_errors = 0
         
         for error in self.errors:
             if len(error.columns) > 1:
                 multicolumn_errors += 1
                 error_type = f"Erreur multicolonne ({len(error.columns)} colonnes)"
+            elif "règle simple multicolonne" in error.message.lower():  # NOUVEAU
+                multi_simple_errors += 1
+                error_type = "Erreur règle simple multicolonne"
             else:
                 simple_errors += 1
                 error_type = error.message.split(":")[0] if ":" in error.message else "Erreur simple"
@@ -837,6 +906,7 @@ class ExcelValidatorCore:
             "status": "error",
             "total_errors": len(self.errors),
             "simple_errors": simple_errors,
+            "multi_simple_errors": multi_simple_errors,
             "multicolumn_errors": multicolumn_errors,
             "errors_by_type": error_by_type,
             "message": f"❌ {len(self.errors)} erreur(s) détectée(s) ({simple_errors} simples, {multicolumn_errors} multicolonnes)"

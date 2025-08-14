@@ -11,7 +11,12 @@ class GradioInterface:
     """Interface Gradio pour l'application de validation Excel avec règles multicolonnes"""
     
     def __init__(self):
-        self.rules_manager = RulesManager()
+        try:
+            self.rules_manager = RulesManager()
+            print("RulesManager initialized successfully")
+        except Exception as e:
+            print(f"Failed to initialize RulesManager: {e}")
+            self.rules_manager = None
         self.validator = ExcelValidatorCore()
         
     def create_interface(self) -> gr.Blocks:
@@ -519,6 +524,20 @@ class GradioInterface:
         )
     
     def _create_simple_rules_section(self):
+        """Section pour créer des règles simples (modifiée)"""
+        gr.Markdown("## 📝 Création de Règles Simples", elem_classes=["section-title"])
+        
+        # NOUVEAU: Onglets pour règles simple et simple multicolonne
+        with gr.Tabs():
+            # Règles simples classiques (une colonne)
+            with gr.Tab("📍 Une colonne"):
+                self._create_single_column_rules()
+            
+            # NOUVEAU: Règles simples multicolonnes
+            with gr.Tab("📊 Plusieurs colonnes"):
+                self._create_multi_simple_rules()
+    
+    def _create_single_column_rules(self):
         """Section pour créer des règles simples"""
         gr.Markdown("## 📝 Création de Règles Simples")
         
@@ -673,13 +692,720 @@ class GradioInterface:
                     data_type, regex_pattern, choices_input, choice_case_sensitive,
                     comparison_operator, comparison_value, duplicate_case_sensitive, trim_option, result_simple]
         )
+        pass
+
+    def _create_multi_simple_rules(self):
+        """NOUVELLE section pour les règles simples sur plusieurs colonnes"""
+        gr.Markdown("### 🔢 Appliquer une règle simple à plusieurs colonnes simultanément")
+        gr.Markdown("*Utile quand vous voulez appliquer la même validation à plusieurs colonnes d'un coup.*")
+        
+        with gr.Row():
+            with gr.Column():
+                gr.Markdown("#### 📋 Configuration de base")
+                
+                multi_columns_input = gr.Textbox(
+                    label="Colonnes concernées (séparées par virgules)",
+                    placeholder="ex: A,B,C ou Nom,Prénom,Email",
+                    lines=2
+                )
+                
+                multi_rule_type_dropdown = gr.Dropdown(
+                    label="Type de règle à appliquer",
+                    choices=[
+                        ("Ne pas être vide", "NotBlank"),
+                        ("Longueur du texte", "Length"),
+                        ("Type de données", "Type"),
+                        ("Expression régulière", "Regex"),
+                        ("Adresse email", "Email"),
+                        ("Choix dans une liste", "Choice"),
+                        ("Nom de pays", "Country"),
+                        ("Date", "Date"),
+                        ("Comparaison", "Comparison")
+                    ],
+                    value="NotBlank"
+                )
+                
+                multi_message_input = gr.Textbox(
+                    label="Message d'erreur personnalisé",
+                    placeholder="ex: Ces colonnes ne peuvent pas être vides",
+                    lines=2
+                )
+            
+            with gr.Column():
+                gr.Markdown("#### ⚙️ Paramètres de la règle")
+                
+                # Paramètres pour Length
+                multi_min_length = gr.Number(label="Longueur minimale", visible=False, value=0)
+                multi_max_length = gr.Number(label="Longueur maximale", visible=False, value=100)
+                
+                # Paramètres pour Type
+                multi_data_type = gr.Dropdown(
+                    label="Type de données",
+                    choices=[("Nombre entier", "integer"), ("Nombre décimal", "float"), ("Booléen", "bool")],
+                    visible=False,
+                    value="integer"
+                )
+                
+                # Paramètres pour Regex
+                multi_regex_pattern = gr.Textbox(label="Pattern regex", visible=False)
+                
+                # Paramètres pour Choice
+                multi_choices_input = gr.Textbox(label="Choix possibles (séparés par virgules)", visible=False)
+                multi_choice_case_sensitive = gr.Checkbox(label="Sensible à la casse", visible=False, value=True)
+                
+                # Paramètres pour Comparison
+                multi_comparison_operator = gr.Dropdown(
+                    label="Opérateur de comparaison",
+                    choices=[
+                        ("Égal à", "equals"),
+                        ("Différent de", "not_equals"),
+                        ("Plus grand que", "greater_than"),
+                        ("Plus petit que", "less_than"),
+                        ("Plus grand ou égal", "greater_equal"),
+                        ("Plus petit ou égal", "less_equal"),
+                        ("Commence par", "starts_with"),
+                        ("Finit par", "ends_with"),
+                        ("Contient", "contains"),
+                        ("Ne contient pas", "not_contains")
+                    ],
+                    visible=False,
+                    value="equals"
+                )
+                multi_comparison_value = gr.Textbox(label="Valeur de comparaison", visible=False)
+                
+                # Option commune
+                multi_trim_option = gr.Checkbox(label="Supprimer les espaces en début/fin", value=False)
+        
+        # Exemples d'utilisation
+        with gr.Row():
+            gr.Markdown("""
+            #### 💡 Exemples d'utilisation
+            
+            - **NotBlank sur A,B,C** : Les colonnes A, B et C doivent toutes être non vides
+            - **Length(3-50) sur Nom,Prénom** : Le nom et prénom doivent faire entre 3 et 50 caractères
+            - **Email sur Email1,Email2,Email3** : Toutes les colonnes d'email doivent contenir des adresses valides
+            - **Type(integer) sur Prix1,Prix2,Prix3** : Tous les prix doivent être des nombres entiers
+            - **Choice(['Oui','Non']) sur Accord1,Accord2** : Les réponses doivent être 'Oui' ou 'Non'
+            """)
+        
+        # Boutons d'action
+        gr.Markdown("---")
+        with gr.Row():
+            create_multi_simple_btn = gr.Button("✅ Créer la règle simple multicolonne", variant="primary", size="lg")
+            clear_multi_simple_btn = gr.Button("🗑️ Effacer tous les champs", variant="secondary")
+            preview_multi_simple_btn = gr.Button("👁️ Prévisualiser la règle", variant="secondary")
+        
+        # Zone de résultat et prévisualisation
+        with gr.Row():
+            with gr.Column():
+                result_multi_simple = gr.Markdown()
+            with gr.Column():
+                preview_multi_simple = gr.Markdown()
+        
+        # Fonction pour mettre à jour les paramètres selon le type de règle
+        def update_multi_simple_params_visibility(rule_type):
+            return [
+                gr.update(visible=rule_type == "Length"),
+                gr.update(visible=rule_type == "Length"),
+                gr.update(visible=rule_type == "Type"),
+                gr.update(visible=rule_type == "Regex"),
+                gr.update(visible=rule_type == "Choice"),
+                gr.update(visible=rule_type == "Choice"),
+                gr.update(visible=rule_type == "Comparison"),
+                gr.update(visible=rule_type == "Comparison")
+            ]
+        
+        multi_rule_type_dropdown.change(
+            update_multi_simple_params_visibility,
+            inputs=[multi_rule_type_dropdown],
+            outputs=[multi_min_length, multi_max_length, multi_data_type, multi_regex_pattern, 
+                    multi_choices_input, multi_choice_case_sensitive, multi_comparison_operator, multi_comparison_value]
+        )
+        
+        # Fonction pour prévisualiser une règle simple multicolonne
+        def preview_multi_simple_rule(columns, rule_type, message, min_len, max_len, dtype, regex, 
+                                    choices, choice_case, comp_op, comp_val, trim):
+            try:
+                if not columns:
+                    return "❌ Veuillez saisir les colonnes concernées"
+                
+                columns_list = [col.strip() for col in columns.split(",") if col.strip()]
+                if len(columns_list) < 2:
+                    return "❌ Au moins 2 colonnes sont nécessaires pour une règle multicolonne"
+                
+                rule_types_info = self.rules_manager.get_multi_simple_rule_types()
+                rule_info = rule_types_info.get(rule_type, {})
+                rule_name = rule_info.get("name", rule_type)
+                
+                preview = f"### 👁️ Aperçu de votre règle simple multicolonne\\n\\n"
+                preview += f"**📝 TYPE :** {rule_name}\\n"
+                preview += f"**📊 COLONNES :** {', '.join(columns_list)} ({len(columns_list)} colonnes)\\n"
+                
+                # Détails spécifiques selon le type
+                if rule_type == "NotBlank":
+                    preview += f"**📐 RÈGLE :** Toutes les colonnes doivent être non vides\\n"
+                elif rule_type == "Length":
+                    preview += f"**📐 RÈGLE :** Toutes les colonnes entre {min_len} et {max_len} caractères\\n"
+                elif rule_type == "Type":
+                    preview += f"**📐 RÈGLE :** Toutes les colonnes de type {dtype}\\n"
+                elif rule_type == "Email":
+                    preview += f"**📐 RÈGLE :** Toutes les colonnes doivent contenir des emails valides\\n"
+                elif rule_type == "Choice":
+                    choices_list = [c.strip() for c in choices.split(",") if c.strip()]
+                    preview += f"**📐 RÈGLE :** Toutes les colonnes dans {choices_list}\\n"
+                elif rule_type == "Regex":
+                    preview += f"**📐 RÈGLE :** Toutes les colonnes respectent le pattern '{regex}'\\n"
+                elif rule_type == "Comparison":
+                    preview += f"**📐 RÈGLE :** Toutes les colonnes {comp_op} '{comp_val}'\\n"
+                
+                preview += f"**📝 MESSAGE :** {message}\\n"
+                preview += f"**⚙️ OPTIONS :** Trim = {'Oui' if trim else 'Non'}\\n"
+                
+                return preview
+                
+            except Exception as e:
+                return f"❌ Erreur dans la prévisualisation : {str(e)}"
+        
+        # Fonction pour créer une règle simple multicolonne
+        def create_multi_simple_rule(columns, rule_type, message, min_len, max_len, dtype, regex, 
+                                    choices, choice_case, comp_op, comp_val, trim):
+            try:
+                if not columns:
+                    return "❌ Veuillez saisir les colonnes concernées"
+                
+                columns_list = [col.strip() for col in columns.split(",") if col.strip()]
+                if len(columns_list) < 2:
+                    return "❌ Au moins 2 colonnes sont nécessaires"
+                
+                # Construction des paramètres selon le type
+                params = {"trim": trim}
+                
+                if rule_type == "Length":
+                    if min_len > 0:
+                        params["min"] = int(min_len)
+                    if max_len > 0:
+                        params["max"] = int(max_len)
+                elif rule_type == "Type":
+                    params["type"] = dtype
+                elif rule_type == "Regex":
+                    if not regex:
+                        return "❌ Veuillez saisir un pattern regex"
+                    params["pattern"] = regex
+                elif rule_type == "Choice":
+                    if not choices:
+                        return "❌ Veuillez saisir les choix possibles"
+                    params["choices"] = [choice.strip() for choice in choices.split(",") if choice.strip()]
+                    params["caseSensitive"] = choice_case
+                elif rule_type == "Comparison":
+                    if not comp_val:
+                        return "❌ Veuillez saisir une valeur de comparaison"
+                    params["operator"] = comp_op
+                    params["value"] = comp_val
+                
+                # Créer la règle
+                rule = self.rules_manager.add_multi_simple_rule(
+                    columns_list, rule_type, params, message
+                )
+                self.rules_manager.save_rules()
+                
+                success_msg = f"""
+                ✅ **Règle simple multicolonne créée avec succès !**
+                
+                **📋 Détails :**
+                - **ID :** {rule['id']}
+                - **Type :** {rule_type}
+                - **Colonnes :** {', '.join(columns_list)} ({len(columns_list)} colonnes)
+                - **Message :** {message}
+                
+                🎯 La règle sera appliquée à chaque colonne individuellement lors de la validation.
+                """
+                
+                return success_msg
+                
+            except Exception as e:
+                return f"❌ **Erreur lors de la création :** {str(e)}"
+        
+        # Fonction pour effacer le formulaire
+        def clear_multi_simple_form():
+            return [
+                "",  # multi_columns_input
+                "NotBlank",  # multi_rule_type_dropdown
+                "",  # multi_message_input
+                0,  # multi_min_length
+                100,  # multi_max_length
+                "integer",  # multi_data_type
+                "",  # multi_regex_pattern
+                "",  # multi_choices_input
+                True,  # multi_choice_case_sensitive
+                "equals",  # multi_comparison_operator
+                "",  # multi_comparison_value
+                False,  # multi_trim_option
+                "",  # result_multi_simple
+                ""   # preview_multi_simple
+            ]
+        
+        # Événements
+        preview_multi_simple_btn.click(
+            preview_multi_simple_rule,
+            inputs=[
+                multi_columns_input, multi_rule_type_dropdown, multi_message_input,
+                multi_min_length, multi_max_length, multi_data_type, multi_regex_pattern,
+                multi_choices_input, multi_choice_case_sensitive, multi_comparison_operator,
+                multi_comparison_value, multi_trim_option
+            ],
+            outputs=[preview_multi_simple]
+        )
+        
+        create_multi_simple_btn.click(
+            create_multi_simple_rule,
+            inputs=[
+                multi_columns_input, multi_rule_type_dropdown, multi_message_input,
+                multi_min_length, multi_max_length, multi_data_type, multi_regex_pattern,
+                multi_choices_input, multi_choice_case_sensitive, multi_comparison_operator,
+                multi_comparison_value, multi_trim_option
+            ],
+            outputs=[result_multi_simple]
+        )
+        
+        clear_multi_simple_btn.click(
+            clear_multi_simple_form,
+            outputs=[
+                multi_columns_input, multi_rule_type_dropdown, multi_message_input,
+                multi_min_length, multi_max_length, multi_data_type, multi_regex_pattern,
+                multi_choices_input, multi_choice_case_sensitive, multi_comparison_operator,
+                multi_comparison_value, multi_trim_option, result_multi_simple, preview_multi_simple
+            ]
+        )
     
     def _create_conditional_rules_section(self):
-        """Section pour créer des règles conditionnelles (code existant abrégé)"""
-        gr.Markdown("## 🔗 Création de Règles Conditionnelles", elem_classes=["section-title"])
-        gr.Markdown("*Interface conditionnelle existante conservée...*")
-        # [Le code existant de cette section reste inchangé]
-    
+            """Section pour créer des règles conditionnelles"""
+            gr.Markdown("## 🔗 Création de Règles Conditionnelles", elem_classes=["section-title"])
+            
+            with gr.Row():
+                with gr.Column():
+                    gr.Markdown("### 💡 Exemple d'utilisation")
+                    gr.Markdown("""
+                    **Cas d'usage typique :**
+                    - Si colonne **Statut** = "VIP" **ET** colonne **Pays** = "France"
+                    - Alors colonne **Montant** doit être entre 1000 et 10000
+                    
+                    **Comment procéder :**
+                    1. Définissez vos conditions (jusqu'à 3)
+                    2. Choisissez l'opérateur logique (ET/OU)
+                    3. Définissez l'action à effectuer
+                    4. Personnalisez le message d'erreur
+                    """)
+            
+            gr.Markdown("---")
+            
+            with gr.Row():
+                with gr.Column():
+                    gr.Markdown("#### 🔍 **ÉTAPE 1 : Définir les Conditions**", elem_classes=["conditional-section"])
+                    
+                    # Condition 1 (obligatoire)
+                    with gr.Group():
+                        gr.Markdown("**🔸 Condition 1** (obligatoire)")
+                        cond1_column = gr.Textbox(
+                            label="Colonne à vérifier",
+                            value="A",
+                            placeholder="ex: A, B, Statut..."
+                        )
+                        cond1_operator = gr.Dropdown(
+                            label="Opérateur de comparaison",
+                            choices=[
+                                ("Égal à", "equals"),
+                                ("Différent de", "not_equals"),
+                                ("Plus grand que", "greater_than"),
+                                ("Plus petit que", "less_than"),
+                                ("Plus grand ou égal", "greater_equal"),
+                                ("Plus petit ou égal", "less_equal"),
+                                ("Commence par", "starts_with"),
+                                ("Finit par", "ends_with"),
+                                ("Contient", "contains"),
+                                ("Ne contient pas", "not_contains"),
+                                ("Est vide", "is_empty"),
+                                ("N'est pas vide", "is_not_empty")
+                            ],
+                            value="equals"
+                        )
+                        cond1_value = gr.Textbox(
+                            label="Valeur de comparaison",
+                            placeholder="ex: VIP, 100, France...",
+                            visible=True
+                        )
+                    
+                    # Condition 2 (optionnelle)
+                    with gr.Group():
+                        gr.Markdown("**🔸 Condition 2** (optionnelle)")
+                        cond2_enabled = gr.Checkbox(
+                            label="🔄 Activer la condition 2",
+                            value=False
+                        )
+                        cond2_logic = gr.Radio(
+                            label="Opérateur logique avec condition 1",
+                            choices=[("ET (toutes les conditions)", "AND"), ("OU (au moins une condition)", "OR")],
+                            value="AND",
+                            visible=False
+                        )
+                        cond2_column = gr.Textbox(
+                            label="Colonne à vérifier",
+                            value="B",
+                            placeholder="ex: B, C, Pays...",
+                            visible=False
+                        )
+                        cond2_operator = gr.Dropdown(
+                            label="Opérateur de comparaison",
+                            choices=[
+                                ("Égal à", "equals"),
+                                ("Différent de", "not_equals"),
+                                ("Plus grand que", "greater_than"),
+                                ("Plus petit que", "less_than"),
+                                ("Plus grand ou égal", "greater_equal"),
+                                ("Plus petit ou égal", "less_equal"),
+                                ("Commence par", "starts_with"),
+                                ("Finit par", "ends_with"),
+                                ("Contient", "contains"),
+                                ("Ne contient pas", "not_contains"),
+                                ("Est vide", "is_empty"),
+                                ("N'est pas vide", "is_not_empty")
+                            ],
+                            value="equals",
+                            visible=False
+                        )
+                        cond2_value = gr.Textbox(
+                            label="Valeur de comparaison",
+                            placeholder="ex: France, 18, Premium...",
+                            visible=False
+                        )
+                    
+                    # Condition 3 (optionnelle)
+                    with gr.Group():
+                        gr.Markdown("**🔸 Condition 3** (optionnelle)")
+                        cond3_enabled = gr.Checkbox(
+                            label="🔄 Activer la condition 3",
+                            value=False
+                        )
+                        cond3_column = gr.Textbox(
+                            label="Colonne à vérifier",
+                            value="C",
+                            placeholder="ex: C, D, Age...",
+                            visible=False
+                        )
+                        cond3_operator = gr.Dropdown(
+                            label="Opérateur de comparaison",
+                            choices=[
+                                ("Égal à", "equals"),
+                                ("Différent de", "not_equals"),
+                                ("Plus grand que", "greater_than"),
+                                ("Plus petit que", "less_than"),
+                                ("Plus grand ou égal", "greater_equal"),
+                                ("Plus petit ou égal", "less_equal"),
+                                ("Commence par", "starts_with"),
+                                ("Finit par", "ends_with"),
+                                ("Contient", "contains"),
+                                ("Ne contient pas", "not_contains"),
+                                ("Est vide", "is_empty"),
+                                ("N'est pas vide", "is_not_empty")
+                            ],
+                            value="equals",
+                            visible=False
+                        )
+                        cond3_value = gr.Textbox(
+                            label="Valeur de comparaison",
+                            placeholder="ex: Actif, 2024, Premium...",
+                            visible=False
+                        )
+                
+                with gr.Column():
+                    gr.Markdown("#### ⚡ **ÉTAPE 2 : Définir l'Action**", elem_classes=["conditional-section"])
+                    
+                    # Action principale
+                    with gr.Group():
+                        gr.Markdown("**🎯 Action à effectuer QUAND les conditions sont vraies**")
+                        action_column = gr.Textbox(
+                            label="Colonne cible (qui sera vérifiée)",
+                            value="E",
+                            placeholder="ex: E, F, Montant..."
+                        )
+                        action_type = gr.Dropdown(
+                            label="Type de validation à appliquer",
+                            choices=[
+                                ("Doit être vide", "must_be_empty"),
+                                ("Ne doit pas être vide", "must_not_be_empty"),
+                                ("Doit être entre deux valeurs", "must_be_between"),
+                                ("Doit être dans la liste", "must_be_in_list"),
+                                ("Doit correspondre au pattern regex", "must_match_pattern")
+                            ],
+                            value="must_not_be_empty"
+                        )
+                        
+                        # Paramètres d'action dynamiques
+                        with gr.Group():
+                            action_min = gr.Number(
+                                label="Valeur minimale",
+                                value=0,
+                                visible=False
+                            )
+                            action_max = gr.Number(
+                                label="Valeur maximale",
+                                value=100,
+                                visible=False
+                            )
+                            action_list = gr.Textbox(
+                                label="Liste de valeurs autorisées (séparées par des virgules)",
+                                placeholder="ex: Oui,Non,Peut-être",
+                                visible=False
+                            )
+                            action_pattern = gr.Textbox(
+                                label="Pattern regex à respecter",
+                                placeholder="ex: \\\\d{2}-\\\\d{2}-\\\\d{4}",
+                                visible=False
+                            )
+                    
+                    # Message d'erreur et logique générale
+                    gr.Markdown("#### 📝 **ÉTAPE 3 : Configuration Finale**", elem_classes=["conditional-section"])
+                    
+                    with gr.Group():
+                        main_logic = gr.Radio(
+                            label="Si plusieurs conditions, logique générale",
+                            choices=[
+                                ("Toutes les conditions doivent être vraies (ET)", "AND"), 
+                                ("Au moins une condition doit être vraie (OU)", "OR")
+                            ],
+                            value="AND"
+                        )
+                        
+                        cond_message = gr.Textbox(
+                            label="Message d'erreur personnalisé",
+                            placeholder="ex: Les clients VIP doivent avoir un montant entre 1000 et 10000",
+                            lines=3
+                        )
+            
+            # Boutons d'action
+            gr.Markdown("---")
+            with gr.Row():
+                create_cond_btn = gr.Button("✅ Créer la règle conditionnelle", variant="primary", size="lg")
+                clear_cond_btn = gr.Button("🗑️ Effacer tous les champs", variant="secondary")
+                preview_cond_btn = gr.Button("👁️ Prévisualiser la règle", variant="secondary")
+            
+            # Zone de résultat et prévisualisation
+            with gr.Row():
+                with gr.Column():
+                    result_conditional = gr.Markdown()
+                with gr.Column():
+                    preview_conditional = gr.Markdown()
+            
+            # Fonctions pour l'interface conditionnelle
+            def toggle_condition2(enabled):
+                return [
+                    gr.update(visible=enabled),
+                    gr.update(visible=enabled),
+                    gr.update(visible=enabled),
+                    gr.update(visible=enabled)
+                ]
+            
+            def toggle_condition3(enabled):
+                return [
+                    gr.update(visible=enabled),
+                    gr.update(visible=enabled),
+                    gr.update(visible=enabled)
+                ]
+            
+            def update_action_params(action_type):
+                return [
+                    gr.update(visible=action_type == "must_be_between"),
+                    gr.update(visible=action_type == "must_be_between"),
+                    gr.update(visible=action_type == "must_be_in_list"),
+                    gr.update(visible=action_type == "must_match_pattern")
+                ]
+            
+            def update_cond1_value_visibility(operator):
+                return gr.update(visible=operator not in ["is_empty", "is_not_empty"])
+            
+            def update_cond2_value_visibility(operator):
+                return gr.update(visible=operator not in ["is_empty", "is_not_empty"])
+            
+            def update_cond3_value_visibility(operator):
+                return gr.update(visible=operator not in ["is_empty", "is_not_empty"])
+            
+            def preview_conditional_rule(c1_col, c1_op, c1_val, c2_enabled, c2_logic, c2_col, c2_op, c2_val,
+                                    c3_enabled, c3_col, c3_op, c3_val, a_col, a_type, a_min, a_max, 
+                                    a_list, a_pattern, message, logic):
+                try:
+                    preview = "### 👁️ Aperçu de votre règle conditionnelle\\n\\n"
+                    preview += "**🔍 CONDITIONS :**\\n"
+                    preview += f"- Si colonne **{c1_col}** {c1_op.replace('_', ' ')} "
+                    
+                    if c1_op not in ["is_empty", "is_not_empty"]:
+                        preview += f"**'{c1_val}'**"
+                    
+                    if c2_enabled and c2_col:
+                        logic_word = "ET" if c2_logic == "AND" else "OU"
+                        preview += f"\\n- {logic_word} colonne **{c2_col}** {c2_op.replace('_', ' ')} "
+                        if c2_op not in ["is_empty", "is_not_empty"]:
+                            preview += f"**'{c2_val}'**"
+                    
+                    if c3_enabled and c3_col:
+                        logic_word = "ET" if logic == "AND" else "OU"
+                        preview += f"\\n- {logic_word} colonne **{c3_col}** {c3_op.replace('_', ' ')} "
+                        if c3_op not in ["is_empty", "is_not_empty"]:
+                            preview += f"**'{c3_val}'**"
+                    
+                    preview += f"\\n\\n**⚡ ACTION :**\\n"
+                    preview += f"- Alors colonne **{a_col}** {a_type.replace('_', ' ').replace('must ', 'doit ')}"
+                    
+                    if a_type == "must_be_between":
+                        preview += f" **{a_min}** et **{a_max}**"
+                    elif a_type == "must_be_in_list" and a_list:
+                        preview += f" : **{a_list}**"
+                    elif a_type == "must_match_pattern" and a_pattern:
+                        preview += f" : **{a_pattern}**"
+                    
+                    preview += f"\\n\\n**📝 MESSAGE :** {message}"
+                    
+                    return preview
+                    
+                except Exception as e:
+                    return f"❌ Erreur dans la prévisualisation : {str(e)}"
+            
+            def create_conditional_rule(c1_col, c1_op, c1_val, c2_enabled, c2_logic, c2_col, c2_op, c2_val,
+                                    c3_enabled, c3_col, c3_op, c3_val, a_col, a_type, a_min, a_max, 
+                                    a_list, a_pattern, message, logic):
+                try:
+                    # Construction des conditions
+                    conditions = [{
+                        "column": c1_col,
+                        "operator": c1_op,
+                        "value": c1_val if c1_op not in ["is_empty", "is_not_empty"] else ""
+                    }]
+                    
+                    if c2_enabled and c2_col:
+                        conditions.append({
+                            "column": c2_col,
+                            "operator": c2_op,
+                            "value": c2_val if c2_op not in ["is_empty", "is_not_empty"] else ""
+                        })
+                    
+                    if c3_enabled and c3_col:
+                        conditions.append({
+                            "column": c3_col,
+                            "operator": c3_op,
+                            "value": c3_val if c3_op not in ["is_empty", "is_not_empty"] else ""
+                        })
+                    
+                    # Construction des actions
+                    action_params = {}
+                    if a_type == "must_be_between":
+                        action_params = {"min": a_min, "max": a_max}
+                    elif a_type == "must_be_in_list":
+                        action_params = {"values": [v.strip() for v in a_list.split(",") if v.strip()]}
+                    elif a_type == "must_match_pattern":
+                        action_params = {"pattern": a_pattern}
+                    
+                    actions = [{
+                        "column": a_col,
+                        "type": a_type,
+                        "params": action_params
+                    }]
+                    
+                    # Création de la règle
+                    rule = self.rules_manager.add_conditional_rule(conditions, actions, message, logic)
+                    self.rules_manager.save_rules()
+                    
+                    success_msg = f"""
+                    ✅ **Règle conditionnelle créée avec succès !**
+                    
+                    **📋 Détails :**
+                    - **ID :** {rule['id']}
+                    - **Conditions :** {len(conditions)} condition(s)
+                    - **Actions :** {len(actions)} action(s)
+                    - **Logique :** {logic}
+                    - **Message :** {message}
+                    
+                    🎯 La règle est maintenant active et sera appliquée lors de la validation.
+                    """
+                    
+                    return success_msg
+                    
+                except Exception as e:
+                    return f"❌ **Erreur lors de la création :** {str(e)}"
+            
+            def clear_conditional_form():
+                """Remet à zéro tous les champs du formulaire conditionnel"""
+                return [
+                    "A",  # cond1_column
+                    "equals",  # cond1_operator
+                    "",  # cond1_value
+                    False,  # cond2_enabled
+                    "AND",  # cond2_logic
+                    "B",  # cond2_column
+                    "equals",  # cond2_operator
+                    "",  # cond2_value
+                    False,  # cond3_enabled
+                    "C",  # cond3_column
+                    "equals",  # cond3_operator
+                    "",  # cond3_value
+                    "E",  # action_column
+                    "must_not_be_empty",  # action_type
+                    0,  # action_min
+                    100,  # action_max
+                    "",  # action_list
+                    "",  # action_pattern
+                    "AND",  # main_logic
+                    "La condition n'est pas respectée",  # cond_message
+                    "",  # result_conditional
+                    ""   # preview_conditional
+                ]
+            
+            # Événements de l'interface
+            cond2_enabled.change(
+                toggle_condition2, 
+                inputs=[cond2_enabled], 
+                outputs=[cond2_logic, cond2_column, cond2_operator, cond2_value]
+            )
+            
+            cond3_enabled.change(
+                toggle_condition3, 
+                inputs=[cond3_enabled], 
+                outputs=[cond3_column, cond3_operator, cond3_value]
+            )
+            
+            action_type.change(
+                update_action_params, 
+                inputs=[action_type], 
+                outputs=[action_min, action_max, action_list, action_pattern]
+            )
+            
+            cond1_operator.change(update_cond1_value_visibility, inputs=[cond1_operator], outputs=[cond1_value])
+            cond2_operator.change(update_cond2_value_visibility, inputs=[cond2_operator], outputs=[cond2_value])
+            cond3_operator.change(update_cond3_value_visibility, inputs=[cond3_operator], outputs=[cond3_value])
+            
+            preview_cond_btn.click(
+                preview_conditional_rule,
+                inputs=[cond1_column, cond1_operator, cond1_value, cond2_enabled, cond2_logic,
+                    cond2_column, cond2_operator, cond2_value, cond3_enabled, cond3_column,
+                    cond3_operator, cond3_value, action_column, action_type, action_min,
+                    action_max, action_list, action_pattern, cond_message, main_logic],
+                outputs=[preview_conditional]
+            )
+            
+            create_cond_btn.click(
+                create_conditional_rule,
+                inputs=[cond1_column, cond1_operator, cond1_value, cond2_enabled, cond2_logic,
+                    cond2_column, cond2_operator, cond2_value, cond3_enabled, cond3_column,
+                    cond3_operator, cond3_value, action_column, action_type, action_min,
+                    action_max, action_list, action_pattern, cond_message, main_logic],
+                outputs=[result_conditional]
+            )
+            
+            clear_cond_btn.click(
+                clear_conditional_form,
+                outputs=[cond1_column, cond1_operator, cond1_value, cond2_enabled, cond2_logic,
+                        cond2_column, cond2_operator, cond2_value, cond3_enabled, cond3_column,
+                        cond3_operator, cond3_value, action_column, action_type, action_min,
+                        action_max, action_list, action_pattern, main_logic, cond_message, 
+                        result_conditional, preview_conditional]
+            )
     def _create_management_tab(self):
         """Crée l'onglet de gestion des règles (mis à jour pour inclure multicolonnes)"""
         gr.Markdown("## 📋 Gestion des Règles", elem_classes=["section-title"])
@@ -824,30 +1550,70 @@ class GradioInterface:
         
         def get_active_rules_info():
             """Retourne les informations sur les règles actives (mise à jour)"""
-            simple_count = len([r for r in self.rules_manager.rules["simple_rules"] if r["active"]])
-            cond_count = len([r for r in self.rules_manager.rules["conditional_rules"] if r["active"]])
-            multi_count = len([r for r in self.rules_manager.rules["multicolumn_rules"] if r["active"]])
             
-            rule_types = {}
-            for rule in self.rules_manager.rules["simple_rules"]:
-                if rule["active"]:
-                    rule_type = rule["rule_type"]
-                    rule_types[rule_type] = rule_types.get(rule_type, 0) + 1
+            # Vérification et initialisation de rules_manager si nécessaire
+            if not hasattr(self, 'rules_manager') or self.rules_manager is None:
+                try:
+                    # Import et initialisation de RulesManager
+                    from rules_manager import RulesManager  # Ajustez le nom du module selon votre structure
+                    self.rules_manager = RulesManager()
+                    print("RulesManager initialisé avec succès dans get_active_rules_info")
+                except Exception as e:
+                    error_msg = f"❌ **Erreur d'initialisation du gestionnaire de règles :**\n{str(e)}"
+                    print(f"Erreur lors de l'initialisation de RulesManager: {e}")
+                    return error_msg
             
-            types_str = ", ".join([f"{count} {rtype}" for rtype, count in rule_types.items()])
+            try:
+                # Comptage des règles actives
+                simple_count = len([r for r in self.rules_manager.rules["simple_rules"] if r["active"]])
+                multi_simple_count = len([r for r in self.rules_manager.rules.get("multi_simple_rules", []) if r["active"]])
+                cond_count = len([r for r in self.rules_manager.rules["conditional_rules"] if r["active"]])
+                multi_count = len([r for r in self.rules_manager.rules["multicolumn_rules"] if r["active"]])
+                
+                # Comptage par type de règles simples
+                rule_types = {}
+                for rule in self.rules_manager.rules["simple_rules"]:
+                    if rule["active"]:
+                        rule_type = rule["rule_type"]
+                        rule_types[rule_type] = rule_types.get(rule_type, 0) + 1
+                
+                # Comptage des règles simples multicolonnes par type
+                multi_simple_types = {}
+                for rule in self.rules_manager.rules.get("multi_simple_rules", []):
+                    if rule["active"]:
+                        rule_type = rule["rule_type"]
+                        multi_simple_types[rule_type] = multi_simple_types.get(rule_type, 0) + 1
+                
+                # Formatage des résultats
+                types_str = ", ".join([f"{count} {rtype}" for rtype, count in rule_types.items()]) if rule_types else "aucune"
+                multi_simple_types_str = ", ".join([f"{count} {rtype}(multi)" for rtype, count in multi_simple_types.items()]) if multi_simple_types else "aucune"
+                
+                return f"""
+        **📊 Règles actives actuellement :**
+        - **{simple_count}** règles simples ({types_str})
+        - **{multi_simple_count}** règles simples multicolonnes ({multi_simple_types_str}) 🆕
+        - **{cond_count}** règles conditionnelles
+        - **{multi_count}** règles multicolonnes avancées
+        - **Total : {simple_count + multi_simple_count + cond_count + multi_count}** règles
+
+        *Les règles désactivées ne seront pas appliquées lors de la validation.*
+        """
             
-            return f"""
-            **📊 Règles actives actuellement :**
-            - **{simple_count}** règles simples ({types_str})
-            - **{cond_count}** règles conditionnelles
-            - **{multi_count}** règles multicolonnes 🆕
-            - **Total : {simple_count + cond_count + multi_count}** règles
-            
-            *Les règles désactivées ne seront pas appliquées lors de la validation.*
-            """
+            except Exception as e:
+                error_msg = f"""
+        ❌ **Erreur lors de la récupération des informations sur les règles :**
+        {str(e)}
+
+        **Détails techniques :**
+        - Type de self: {type(self)}
+        - rules_manager exists: {hasattr(self, 'rules_manager')}
+        - rules_manager type: {type(self.rules_manager) if hasattr(self, 'rules_manager') and self.rules_manager else 'None'}
+        """
+                print(f"Erreur dans get_active_rules_info: {e}")
+                return error_msg
         
-        def validate_excel_file(file_path, sheet):
-            """Valide un fichier Excel (mise à jour pour multicolonnes)"""
+        def validate_excel_file( file_path, sheet):
+            """Valide un fichier Excel (mise à jour pour règles simples multicolonnes)"""
             if not file_path:
                 return (
                     "❌ **Erreur :** Veuillez sélectionner un fichier Excel",
@@ -871,6 +1637,7 @@ class GradioInterface:
                 
                 if success:
                     active_simple = len([r for r in self.rules_manager.rules["simple_rules"] if r["active"]])
+                    active_multi_simple = len([r for r in self.rules_manager.rules.get("multi_simple_rules", []) if r["active"]])  # NOUVEAU
                     active_cond = len([r for r in self.rules_manager.rules["conditional_rules"] if r["active"]])
                     active_multi = len([r for r in self.rules_manager.rules["multicolumn_rules"] if r["active"]])
                     
@@ -880,7 +1647,7 @@ class GradioInterface:
                         
                         **📁 Fichier :** {os.path.basename(file_path)}
                         **📊 Lignes traitées :** Validation complète
-                        **🔍 Règles appliquées :** {active_simple} simples + {active_cond} conditionnelles + {active_multi} multicolonnes
+                        **🔍 Règles appliquées :** {active_simple} simples + {active_multi_simple} simples multi + {active_cond} conditionnelles + {active_multi} multicolonnes
                         </div>""",
                         gr.update(visible=False),
                         gr.update(visible=False),
@@ -898,6 +1665,7 @@ class GradioInterface:
                         errors_df.to_csv(csv_path, sep=';', index=False, encoding='utf-8')
                     
                     active_simple = len([r for r in self.rules_manager.rules["simple_rules"] if r["active"]])
+                    active_multi_simple = len([r for r in self.rules_manager.rules.get("multi_simple_rules", []) if r["active"]])  # NOUVEAU
                     active_cond = len([r for r in self.rules_manager.rules["conditional_rules"] if r["active"]])
                     active_multi = len([r for r in self.rules_manager.rules["multicolumn_rules"] if r["active"]])
                     
@@ -907,8 +1675,9 @@ class GradioInterface:
                     **📁 Fichier :** {os.path.basename(file_path)}
                     **📊 Total erreurs :** {summary['total_errors']}
                     **🔍 Erreurs simples :** {summary.get('simple_errors', 0)}
-                    **🔢 Erreurs multicolonnes :** {summary.get('multicolumn_errors', 0)} 🆕
-                    **🔍 Règles appliquées :** {active_simple} simples + {active_cond} conditionnelles + {active_multi} multicolonnes
+                    **🔢 Erreurs simples multicolonnes :** {summary.get('multi_simple_errors', 0)} 🆕
+                    **🔢 Erreurs multicolonnes avancées :** {summary.get('multicolumn_errors', 0)}
+                    **🔍 Règles appliquées :** {active_simple} simples + {active_multi_simple} simples multi + {active_cond} conditionnelles + {active_multi} multicolonnes
                     
                     **🔍 Répartition par type :**
                     """

@@ -116,6 +116,93 @@ class RulesManager:
             }
         }
     
+    def add_multi_simple_rule(self, columns: List[str], rule_type: str, params: Dict[str, Any], 
+                         message: str = "") -> Dict[str, Any]:
+        """
+        Ajoute une règle simple appliquée à plusieurs colonnes
+        
+        Args:
+            columns: Liste des colonnes concernées (ex: ["A", "B", "C"])
+            rule_type: Type de règle simple (NotBlank, Length, Type, etc.)
+            params: Paramètres de la règle
+            message: Message d'erreur personnalisé
+        
+        Returns:
+            La règle créée
+        """
+        rule_id = f"multi_simple_{len(self.rules.get('multi_simple_rules', [])) + 1}_{int(datetime.now().timestamp())}"
+        
+        rule = {
+            "id": rule_id,
+            "columns": columns,
+            "rule_type": rule_type,
+            "params": params,
+            "message": message or f"Erreur de validation {rule_type} sur plusieurs colonnes",
+            "active": True,
+            "created_at": datetime.now().isoformat()
+        }
+        
+        # Initialiser la section si elle n'existe pas
+        if "multi_simple_rules" not in self.rules:
+            self.rules["multi_simple_rules"] = []
+        
+        self.rules["multi_simple_rules"].append(rule)
+        self._update_metadata()
+        return rule
+
+    def get_multi_simple_rule_types(self) -> Dict[str, Dict]:
+        """Retourne les types de règles simples applicables à plusieurs colonnes"""
+        return {
+            "NotBlank": {
+                "name": "Non vide (multi)",
+                "description": "Toutes les colonnes spécifiées doivent être non vides",
+                "params": [],
+                "example": "A, B, C toutes non vides"
+            },
+            "Length": {
+                "name": "Longueur (multi)",
+                "description": "Toutes les colonnes doivent respecter les contraintes de longueur",
+                "params": ["min", "max"],
+                "example": "A, B, C entre 3 et 50 caractères"
+            },
+            "Type": {
+                "name": "Type de données (multi)",
+                "description": "Toutes les colonnes doivent être du même type",
+                "params": ["type"],
+                "example": "A, B, C tous des nombres"
+            },
+            "Regex": {
+                "name": "Expression régulière (multi)",
+                "description": "Toutes les colonnes doivent correspondre au pattern",
+                "params": ["pattern"],
+                "example": "A, B, C respectent le format XXX-999"
+            },
+            "Choice": {
+                "name": "Choix dans liste (multi)",
+                "description": "Toutes les colonnes doivent contenir des valeurs de la liste",
+                "params": ["choices", "caseSensitive"],
+                "example": "A, B, C dans ['Oui', 'Non', 'Peut-être']"
+            },
+            "Email": {
+                "name": "Email valide (multi)",
+                "description": "Toutes les colonnes doivent contenir des emails valides",
+                "params": [],
+                "example": "A, B, C des adresses emails valides"
+            },
+            "Date": {
+                "name": "Date valide (multi)",
+                "description": "Toutes les colonnes doivent contenir des dates valides",
+                "params": ["format"],
+                "example": "A, B, C des dates au format JJ/MM/AAAA"
+            },
+            "Comparison": {
+                "name": "Comparaison (multi)",
+                "description": "Toutes les colonnes doivent respecter la même condition",
+                "params": ["operator", "value"],
+                "example": "A, B, C toutes > 100"
+            }
+        }
+
     def add_simple_rule(self, column: str, rule_type: str, params: Dict[str, Any], 
                        message: str = "") -> Dict[str, Any]:
         """Ajoute une règle de validation simple"""
@@ -161,15 +248,17 @@ class RulesManager:
                 with open(self.rules_file, 'r', encoding='utf-8') as f:
                     loaded_rules = json.load(f)
                     
-                # Mise à jour de la structure pour inclure les règles multicolonnes
+                # Mise à jour de la structure pour inclure les nouvelles règles
                 if "multicolumn_rules" not in loaded_rules:
                     loaded_rules["multicolumn_rules"] = []
+                if "multi_simple_rules" not in loaded_rules:  # NOUVEAU
+                    loaded_rules["multi_simple_rules"] = []
                 
                 self.rules = loaded_rules
                 
                 # Mise à jour de la version si nécessaire
-                if self.rules["metadata"].get("version", "1.0") < "1.1":
-                    self.rules["metadata"]["version"] = "1.1"
+                if self.rules["metadata"].get("version", "1.0") < "1.2":
+                    self.rules["metadata"]["version"] = "1.2"
                     self.save_rules()
                     
             except Exception as e:
@@ -197,6 +286,19 @@ class RulesManager:
                 "Simple",
                 rule["column"],
                 f"{rule['rule_type']}",
+                rule["message"],
+                "✅ Actif" if rule["active"] else "❌ Inactif"
+            ])
+        
+        # NOUVEAU: Règles simples multicolonnes
+        for rule in self.rules.get("multi_simple_rules", []):
+            columns_str = ", ".join(rule["columns"])
+            rule_desc = f"{rule['rule_type']} (multi)"
+            summary_data.append([
+                rule["id"],
+                "Simple Multi",
+                columns_str,
+                rule_desc,
                 rule["message"],
                 "✅ Actif" if rule["active"] else "❌ Inactif"
             ])
@@ -231,14 +333,15 @@ class RulesManager:
             return pd.DataFrame(columns=["ID", "Type", "Colonne(s)", "Règle", "Message", "Status"])
         
         return pd.DataFrame(summary_data, columns=["ID", "Type", "Colonne(s)", "Règle", "Message", "Status"])
+
     
     def toggle_rule(self, rule_id: str, rule_type: str = None) -> bool:
         """Active ou désactive une règle"""
-        # Recherche dans toutes les catégories
         rule_collections = [
             self.rules["simple_rules"],
             self.rules["conditional_rules"],
-            self.rules["multicolumn_rules"]
+            self.rules["multicolumn_rules"],
+            self.rules.get("multi_simple_rules", [])  # NOUVEAU
         ]
         
         for collection in rule_collections:
@@ -249,13 +352,14 @@ class RulesManager:
                     return True
         
         return False
-    
+
     def delete_rule(self, rule_id: str, rule_type: str = None) -> bool:
         """Supprime une règle"""
         rule_collections = [
             ("simple_rules", self.rules["simple_rules"]),
             ("conditional_rules", self.rules["conditional_rules"]),
-            ("multicolumn_rules", self.rules["multicolumn_rules"])
+            ("multicolumn_rules", self.rules["multicolumn_rules"]),
+            ("multi_simple_rules", self.rules.get("multi_simple_rules", []))  # NOUVEAU
         ]
         
         for collection_name, collection in rule_collections:
@@ -277,7 +381,8 @@ class RulesManager:
             "excludes": [],
             "header": True,
             "conditional_rules": [],
-            "multicolumn_rules": []  # Nouvelle section
+            "multicolumn_rules": [],
+            "multi_simple_rules": []  # NOUVEAU
         }
         
         # Conversion des règles simples
@@ -296,6 +401,17 @@ class RulesManager:
                 }
             }
             config["validators"]["columns"][column].append(rule_config)
+        
+        # NOUVEAU: Conversion des règles simples multicolonnes
+        for rule in self.rules.get("multi_simple_rules", []):
+            if rule["active"]:
+                config["multi_simple_rules"].append({
+                    "id": rule["id"],
+                    "columns": rule["columns"],
+                    "rule_type": rule["rule_type"],
+                    "params": rule["params"],
+                    "message": rule["message"]
+                })
         
         # Conversion des règles conditionnelles
         for rule in self.rules["conditional_rules"]:
@@ -356,11 +472,12 @@ class RulesManager:
         """Crée un fichier de règles par défaut"""
         self.rules = {
             "simple_rules": [],
+            "multi_simple_rules": [],  # NOUVEAU
             "conditional_rules": [],
             "multicolumn_rules": [],
             "metadata": {
                 "created_at": datetime.now().isoformat(),
-                "version": "1.1",
+                "version": "1.2",  # Version mise à jour
                 "last_modified": datetime.now().isoformat()
             }
         }
@@ -372,13 +489,17 @@ class RulesManager:
     
     def get_statistics(self) -> Dict[str, Any]:
         """Retourne des statistiques sur les règles"""
+        multi_simple_count = len(self.rules.get("multi_simple_rules", []))
+        
         return {
-            "total_rules": len(self.rules["simple_rules"]) + len(self.rules["conditional_rules"]) + len(self.rules["multicolumn_rules"]),
+            "total_rules": len(self.rules["simple_rules"]) + len(self.rules["conditional_rules"]) + len(self.rules["multicolumn_rules"]) + multi_simple_count,
             "simple_rules": len(self.rules["simple_rules"]),
+            "multi_simple_rules": multi_simple_count,  # NOUVEAU
             "conditional_rules": len(self.rules["conditional_rules"]),
             "multicolumn_rules": len(self.rules["multicolumn_rules"]),
             "active_rules": sum([
                 len([r for r in self.rules["simple_rules"] if r["active"]]),
+                len([r for r in self.rules.get("multi_simple_rules", []) if r["active"]]),  # NOUVEAU
                 len([r for r in self.rules["conditional_rules"] if r["active"]]),
                 len([r for r in self.rules["multicolumn_rules"] if r["active"]])
             ]),
