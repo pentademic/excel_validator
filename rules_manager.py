@@ -12,10 +12,10 @@ class RulesManager:
         self.rules = {
             "simple_rules": [],
             "conditional_rules": [],
-            "multicolumn_rules": [],  # Nouvelle section pour les règles multicolonnes
+            "multicolumn_rules": [],  
             "metadata": {
                 "created_at": datetime.now().isoformat(),
-                "version": "1.1",  # Version mise à jour
+                "version": "2.0",  # Version mise à jour
                 "last_modified": datetime.now().isoformat()
             }
         }
@@ -251,14 +251,14 @@ class RulesManager:
                 # Mise à jour de la structure pour inclure les nouvelles règles
                 if "multicolumn_rules" not in loaded_rules:
                     loaded_rules["multicolumn_rules"] = []
-                if "multi_simple_rules" not in loaded_rules:  # NOUVEAU
+                if "multi_simple_rules" not in loaded_rules:  
                     loaded_rules["multi_simple_rules"] = []
                 
                 self.rules = loaded_rules
                 
                 # Mise à jour de la version si nécessaire
-                if self.rules["metadata"].get("version", "1.0") < "1.2":
-                    self.rules["metadata"]["version"] = "1.2"
+                if self.rules["metadata"].get("version", "1.0") < "2.0":
+                    self.rules["metadata"]["version"] = "2.0"
                     self.save_rules()
                     
             except Exception as e:
@@ -290,7 +290,7 @@ class RulesManager:
                 "✅ Actif" if rule["active"] else "❌ Inactif"
             ])
         
-        # NOUVEAU: Règles simples multicolonnes
+        # Règles simples multicolonnes
         for rule in self.rules.get("multi_simple_rules", []):
             columns_str = ", ".join(rule["columns"])
             rule_desc = f"{rule['rule_type']} (multi)"
@@ -341,7 +341,7 @@ class RulesManager:
             self.rules["simple_rules"],
             self.rules["conditional_rules"],
             self.rules["multicolumn_rules"],
-            self.rules.get("multi_simple_rules", [])  # NOUVEAU
+            self.rules.get("multi_simple_rules", [])  
         ]
         
         for collection in rule_collections:
@@ -359,7 +359,7 @@ class RulesManager:
             ("simple_rules", self.rules["simple_rules"]),
             ("conditional_rules", self.rules["conditional_rules"]),
             ("multicolumn_rules", self.rules["multicolumn_rules"]),
-            ("multi_simple_rules", self.rules.get("multi_simple_rules", []))  # NOUVEAU
+            ("multi_simple_rules", self.rules.get("multi_simple_rules", []))  
         ]
         
         for collection_name, collection in rule_collections:
@@ -382,7 +382,7 @@ class RulesManager:
             "header": True,
             "conditional_rules": [],
             "multicolumn_rules": [],
-            "multi_simple_rules": []  # NOUVEAU
+            "multi_simple_rules": [] 
         }
         
         # Conversion des règles simples
@@ -402,7 +402,7 @@ class RulesManager:
             }
             config["validators"]["columns"][column].append(rule_config)
         
-        # NOUVEAU: Conversion des règles simples multicolonnes
+        # Conversion des règles simples multicolonnes
         for rule in self.rules.get("multi_simple_rules", []):
             if rule["active"]:
                 config["multi_simple_rules"].append({
@@ -472,12 +472,12 @@ class RulesManager:
         """Crée un fichier de règles par défaut"""
         self.rules = {
             "simple_rules": [],
-            "multi_simple_rules": [],  # NOUVEAU
+            "multi_simple_rules": [], 
             "conditional_rules": [],
             "multicolumn_rules": [],
             "metadata": {
                 "created_at": datetime.now().isoformat(),
-                "version": "1.2",  # Version mise à jour
+                "version": "2.0",  # Version mise à jour
                 "last_modified": datetime.now().isoformat()
             }
         }
@@ -494,12 +494,12 @@ class RulesManager:
         return {
             "total_rules": len(self.rules["simple_rules"]) + len(self.rules["conditional_rules"]) + len(self.rules["multicolumn_rules"]) + multi_simple_count,
             "simple_rules": len(self.rules["simple_rules"]),
-            "multi_simple_rules": multi_simple_count,  # NOUVEAU
+            "multi_simple_rules": multi_simple_count,  
             "conditional_rules": len(self.rules["conditional_rules"]),
             "multicolumn_rules": len(self.rules["multicolumn_rules"]),
             "active_rules": sum([
                 len([r for r in self.rules["simple_rules"] if r["active"]]),
-                len([r for r in self.rules.get("multi_simple_rules", []) if r["active"]]),  # NOUVEAU
+                len([r for r in self.rules.get("multi_simple_rules", []) if r["active"]]),  
                 len([r for r in self.rules["conditional_rules"] if r["active"]]),
                 len([r for r in self.rules["multicolumn_rules"] if r["active"]])
             ]),

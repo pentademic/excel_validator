@@ -54,13 +54,13 @@ class ExcelValidatorCore:
             excludes = rules_config.get("excludes", [])
             header_row = rules_config.get("header", True)
             conditional_rules = rules_config.get("conditional_rules", [])
-            multicolumn_rules = rules_config.get("multicolumn_rules", [])  # Nouvelle section
+            multicolumn_rules = rules_config.get("multicolumn_rules", [])  
             multi_simple_rules = rules_config.get("multi_simple_rules", [])
 
             # Validation des règles simples
             self._validate_worksheet(ws, validators, default_validator, excludes, header_row)
             
-            # NOUVEAU: Validation des règles simples multicolonnes
+            # Validation des règles simples multicolonnes
             self._validate_multi_simple_rules(multi_simple_rules)
             
             # Validation des règles conditionnelles
@@ -893,7 +893,7 @@ class ExcelValidatorCore:
             if len(error.columns) > 1:
                 multicolumn_errors += 1
                 error_type = f"Erreur multicolonne ({len(error.columns)} colonnes)"
-            elif "règle simple multicolonne" in error.message.lower():  # NOUVEAU
+            elif "règle simple multicolonne" in error.message.lower():
                 multi_simple_errors += 1
                 error_type = "Erreur règle simple multicolonne"
             else:

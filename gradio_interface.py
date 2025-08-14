@@ -54,7 +54,7 @@ class GradioInterface:
                         with gr.Tab("🔗 Règles Conditionnelles"):
                             self._create_conditional_rules_section()
                         
-                        # Règles multicolonnes - NOUVEAU
+                        # Règles multicolonnes 
                         with gr.Tab("🔢 Règles Multicolonnes"):
                             self._create_multicolumn_rules_section()
                 
@@ -81,28 +81,18 @@ class GradioInterface:
         - 🔍 **Règles de comparaison** : Plus grand/petit que, égal, différent, commence/finit par, contient
         - 🔍 **Détection de doublons** : Identification des valeurs dupliquées dans une colonne
         - 🔗 **Règles conditionnelles avancées** : "Si colonne A = X alors colonne B doit être Y"
-        - 🔢 **NOUVEAU : Règles multicolonnes** : Validation sur plusieurs colonnes simultanément
+        - 🔢 **Règles multicolonnes** : Validation sur plusieurs colonnes simultanément
         - 📋 **Gestion centralisée** : Activer/désactiver, modifier, supprimer vos règles
         - ✅ **Validation rapide** : Drag & drop de vos fichiers Excel
         - 📊 **Rapports détaillés** : Identification précise des erreurs avec export
         
-        ### 🆕 Nouvelles règles multicolonnes
-        
-        - ➕ **Somme égale** : A + B = C
-        - 📊 **Somme dans une plage** : A + B + C entre 100 et 1000
-        - 📅 **Comparaison de dates** : Date_début < Date_fin
-        - 📈 **Pourcentage de** : A = 20% de B (±tolérance)
-        - 🔄 **Tout ou rien** : A, B, C toutes remplies OU toutes vides
-        - 🔑 **Combinaison unique** : A+B+C unique dans le fichier
-        - 📐 **Maximum/Minimum** : C = MAX(A, B) ou MIN(A, B)
-        - ⚖️ **Somme conditionnelle** : Si D='VIP' alors A+B+C > 1000
         
         ### 📚 Comment utiliser l'application ?
         
         1. **Étape 1** : Créez vos règles de validation dans l'onglet "Créer des Règles"
            - **Règles Simples** : Validation directe d'une colonne
            - **Règles Conditionnelles** : "Si... alors..." avec conditions multiples
-           - **🆕 Règles Multicolonnes** : Validation sur plusieurs colonnes simultanément
+           - **Règles Multicolonnes** : Validation sur plusieurs colonnes simultanément
         2. **Étape 2** : Gérez vos règles dans "Gérer les Règles"
         3. **Étape 3** : Validez vos fichiers Excel dans "Validation Excel"
         
@@ -116,7 +106,7 @@ class GradioInterface:
         """)
     
     def _create_multicolumn_rules_section(self):
-        """Section pour créer des règles multicolonnes - NOUVELLE"""
+        """Section pour créer des règles multicolonnes """
         gr.Markdown("## 🔢 Création de Règles Multicolonnes", elem_classes=["section-title"])
         
         with gr.Row():
@@ -524,16 +514,16 @@ class GradioInterface:
         )
     
     def _create_simple_rules_section(self):
-        """Section pour créer des règles simples (modifiée)"""
+        """Section pour créer des règles simples"""
         gr.Markdown("## 📝 Création de Règles Simples", elem_classes=["section-title"])
         
-        # NOUVEAU: Onglets pour règles simple et simple multicolonne
+        # Onglets pour règles simple et simple multicolonne
         with gr.Tabs():
             # Règles simples classiques (une colonne)
             with gr.Tab("📍 Une colonne"):
                 self._create_single_column_rules()
             
-            # NOUVEAU: Règles simples multicolonnes
+            # Règles simples multicolonnes
             with gr.Tab("📊 Plusieurs colonnes"):
                 self._create_multi_simple_rules()
     
@@ -695,7 +685,7 @@ class GradioInterface:
         pass
 
     def _create_multi_simple_rules(self):
-        """NOUVELLE section pour les règles simples sur plusieurs colonnes"""
+        """Section pour les règles simples sur plusieurs colonnes"""
         gr.Markdown("### 🔢 Appliquer une règle simple à plusieurs colonnes simultanément")
         gr.Markdown("*Utile quand vous voulez appliquer la même validation à plusieurs colonnes d'un coup.*")
         
@@ -1637,7 +1627,7 @@ class GradioInterface:
                 
                 if success:
                     active_simple = len([r for r in self.rules_manager.rules["simple_rules"] if r["active"]])
-                    active_multi_simple = len([r for r in self.rules_manager.rules.get("multi_simple_rules", []) if r["active"]])  # NOUVEAU
+                    active_multi_simple = len([r for r in self.rules_manager.rules.get("multi_simple_rules", []) if r["active"]])  
                     active_cond = len([r for r in self.rules_manager.rules["conditional_rules"] if r["active"]])
                     active_multi = len([r for r in self.rules_manager.rules["multicolumn_rules"] if r["active"]])
                     
@@ -1665,7 +1655,7 @@ class GradioInterface:
                         errors_df.to_csv(csv_path, sep=';', index=False, encoding='utf-8')
                     
                     active_simple = len([r for r in self.rules_manager.rules["simple_rules"] if r["active"]])
-                    active_multi_simple = len([r for r in self.rules_manager.rules.get("multi_simple_rules", []) if r["active"]])  # NOUVEAU
+                    active_multi_simple = len([r for r in self.rules_manager.rules.get("multi_simple_rules", []) if r["active"]])  
                     active_cond = len([r for r in self.rules_manager.rules["conditional_rules"] if r["active"]])
                     active_multi = len([r for r in self.rules_manager.rules["multicolumn_rules"] if r["active"]])
                     
