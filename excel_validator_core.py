@@ -501,6 +501,7 @@ class ExcelValidatorCore:
     
     def _load_worksheet_data(self, ws):
         """Charge toutes les données de la feuille en mémoire"""
+        self.header_map = {}  # Dictionnaire Colonne -> Nom
         for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
             if all(cell is None or cell == "" for cell in row):
                 continue
@@ -508,6 +509,9 @@ class ExcelValidatorCore:
             for col_idx, value in enumerate(row, 1):
                 column_letter = get_column_letter(col_idx)
                 self.worksheet_data[row_idx][column_letter] = value
+                # Stocker le nom de l'en-tête si on est sur la première ligne
+                if row_idx == 1 and value not in (None, ""):
+                    self.header_map[column_letter] = str(value)
     
     def _validate_conditional_rules(self, conditional_rules: List[Dict]):
         """Valide les règles conditionnelles"""
@@ -861,8 +865,34 @@ class ExcelValidatorCore:
             return pd.DataFrame(columns=["Ligne", "Colonne(s)", "Coordonnée", "Message", "Valeur(s)"])
         
         data = []
+        # Récupérer la map des en-têtes une fois (vide si non chargée)
+        header_map = getattr(self, "header_map", {}) or {}
+
+        # Référence de la colonne B (cellule de référence demandée)
+        ref_column = "B"
+
+        def _col_label(col_letter: str, row: int) -> str:
+            """Retourne 'NomColonne-B{row}(valeur)' si le nom existe, sinon 'ColLetter-B{row}(valeur)'.
+            Récupère la valeur de la cellule de référence (colonne B) pour la ligne donnée.
+            """
+            name = header_map.get(col_letter)
+            base = name if name else col_letter
+
+            # Récupérer la valeur en colonne de référence pour cette ligne (si disponible)
+            row_data = getattr(self, "worksheet_data", {}) or {}
+            row_cells = row_data.get(row, {}) if isinstance(row_data, dict) else {}
+            ref_val = row_cells.get(ref_column)
+            ref_val_str = "" if ref_val is None else str(ref_val)
+
+            # Format: 'value - Column' (ne pas afficher l'index de cellule). Si la valeur B est vide,
+            # retourner seulement le nom/lettre de colonne.
+            if ref_val_str:
+                return f"{ref_val_str} - {base}"
+            return base
+
         for error in self.errors:
-            columns_str = ", ".join(error.columns)
+            # Afficher 'NomColonne-B{row}' pour chaque colonne en erreur
+            columns_str = ", ".join([_col_label(c, error.row) for c in error.columns])
             values_str = ", ".join([str(v) if v is not None else "" for v in error.values])
             
             data.append({
