@@ -4,17 +4,11 @@ echo   Excel Validator Pro - Installation
 echo ========================================
 echo.
 
-:: Définir le dossier d'installation court
-set INSTALL_DIR=C:\gvenv_validator
-set VENV_DIR=%INSTALL_DIR%\venv
+:: Définir le dossier de l'application comme dossier courant
+cd /d "%~dp0"
 
-:: Créer le dossier si nécessaire
-if not exist "%INSTALL_DIR%" (
-    mkdir "%INSTALL_DIR%"
-)
-
-:: Se déplacer dans le dossier d'installation
-cd /d "%INSTALL_DIR%"
+:: Définir le dossier de l'environnement virtuel dans le dossier de l'app
+set VENV_DIR=venv
 
 :: Vérification de Python
 echo [1/5] Verification de Python...
@@ -34,23 +28,38 @@ if not exist "%VENV_DIR%" (
 :: Activation de l'environnement virtuel
 echo [3/5] Activation de l'environnement...
 call "%VENV_DIR%\Scripts\activate.bat"
-
-:: Installer les dépendances
-echo [4/5] Installation des dépendances...
-if exist "%~dp0requirements.txt" (
-    pip install --no-cache-dir -r "%~dp0requirements.txt"
-) else (
-    echo Aucun fichier requirements.txt trouvé dans le dossier du script.
+if errorlevel 1 (
+    echo [ERREUR] Impossible d'activer l'environnement virtuel.
     pause
     exit /b 1
 )
 
-:: Lancer l'application
-echo [5/5] Lancement de l'application...
-if exist "%~dp0app.py" (
-    python "%~dp0app.py"
+:: Installation des dépendances
+echo [4/5] Installation des dependances...
+if exist "requirements.txt" (
+    pip install --no-cache-dir -r "requirements.txt"
+    if errorlevel 1 (
+        echo [ERREUR] Impossible d'installer les dependances.
+        pause
+        exit /b 1
+    )
 ) else (
-    echo ERREUR : Le fichier app.py est introuvable dans le dossier du script.
+    echo [ERREUR] Le fichier requirements.txt est introuvable.
+    pause
+    exit /b 1
+)
+
+:: Lancement de l'application
+echo [5/5] Lancement de l'application...
+if exist "app.py" (
+    python "app.py"
+    if errorlevel 1 (
+        echo [ERREUR] Une erreur s'est produite lors du lancement de l'application.
+        pause
+        exit /b 1
+    )
+) else (
+    echo [ERREUR] Le fichier app.py est introuvable.
     pause
     exit /b 1
 )

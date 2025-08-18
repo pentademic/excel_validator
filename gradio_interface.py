@@ -3,6 +3,7 @@ import pandas as pd
 import json
 import os
 import tempfile
+import time
 from typing import Dict, List, Any, Tuple, Optional
 from rules_manager import RulesManager
 from excel_validator_core import ExcelValidatorCore
@@ -1402,8 +1403,25 @@ class GradioInterface:
         
         with gr.Row():
             refresh_btn = gr.Button("🔄 Actualiser", variant="secondary")
-            export_btn = gr.Button("📤 Exporter", variant="primary")
-            import_btn = gr.Button("📥 Importer", variant="primary")
+            
+            # Zone d'import/export avec boutons côte à côte
+            with gr.Row():
+                # Colonne Export
+                with gr.Column():
+                    export_btn = gr.Button("📤 Exporter les règles", variant="primary", scale=1)
+                    rules_download = gr.File(
+                        label="📥 Fichier de règles exporté",
+                        visible=False,
+                        interactive=False
+                    )
+                
+                # Colonne Import
+                with gr.Column():
+                    import_btn = gr.Button("📥 Importer des règles", variant="primary", scale=1)
+                    import_file = gr.File(
+                        label="Sélectionner le fichier (.json)",
+                        file_types=[".json"]
+                    )
         
         # Tableau des règles (maintenant avec support multicolonne)
         rules_table = gr.Dataframe(
@@ -1429,15 +1447,25 @@ class GradioInterface:
         
         management_result = gr.Markdown()
         
-        # Import/Export de fichiers
-        with gr.Row():
-            import_file = gr.File(label="Fichier de règles à importer (.json)", file_types=[".json"])
-            export_path = gr.Textbox(label="Nom du fichier d'export", value="mes_regles.json")
-        
         def refresh_rules_table():
             """Actualise le tableau des règles"""
             summary = self.rules_manager.get_rules_summary()
             return summary
+        
+        def export_rules():
+            """Exporte les règles dans un fichier temporaire pour téléchargement"""
+            try:
+                # Créer un fichier temporaire pour l'export
+                temp_file = os.path.join(tempfile.gettempdir(), f"regles_export_{int(time.time())}.json")
+                
+                # Exporter les règles dans le fichier temporaire
+                if self.rules_manager.export_rules(temp_file):
+                    return temp_file, gr.update(visible=True)
+                return None, gr.update(visible=False)
+                
+            except (OSError, ValueError) as e:
+                print(f"Erreur lors de l'export: {e}")
+                return None, gr.update(visible=False)
         
         def toggle_rule(rule_id, rule_type):
             """Active/désactive une règle"""
@@ -1461,15 +1489,7 @@ class GradioInterface:
                 return f"✅ Règle {rule_id} supprimée"
             return f"❌ Règle {rule_id} introuvable"
         
-        def export_rules(filename):
-            """Exporte les règles"""
-            if not filename.endswith('.json'):
-                filename += '.json'
-            
-            success = self.rules_manager.export_rules(filename)
-            if success:
-                return f"✅ Règles exportées vers {filename}"
-            return f"❌ Erreur lors de l'export"
+
         
         def import_rules(file):
             """Importe les règles"""
@@ -1485,7 +1505,7 @@ class GradioInterface:
         refresh_btn.click(refresh_rules_table, outputs=[rules_table])
         toggle_btn.click(toggle_rule, inputs=[rule_id_input, rule_type_input], outputs=[management_result])
         delete_btn.click(delete_rule, inputs=[rule_id_input, rule_type_input], outputs=[management_result])
-        export_btn.click(export_rules, inputs=[export_path], outputs=[management_result])
+        export_btn.click(export_rules, outputs=[rules_download, rules_download])
         import_btn.click(import_rules, inputs=[import_file], outputs=[management_result])
         
         return rules_table, refresh_rules_table

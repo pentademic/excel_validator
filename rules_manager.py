@@ -438,34 +438,80 @@ class RulesManager:
         return config
     
     def export_rules(self, filename: str) -> bool:
-        """Exporte les règles vers un fichier JSON"""
+        """Exporte les règles vers un fichier JSON.
+        
+        Args:
+            filename (str): Chemin absolu du fichier d'export
+            
+        Returns:
+            bool: True si l'export réussit, False sinon
+            
+        Raises:
+            ValueError: Si le nom de fichier est invalide
+            OSError: En cas d'erreur d'écriture ou de permissions
+        """
+        if not filename:
+            raise ValueError("Le nom de fichier ne peut pas être vide")
+            
         try:
+            # S'assurer que les métadonnées sont à jour
+            self._update_metadata()
+            
+            # Tenter d'ouvrir le fichier en écriture pour vérifier les permissions
             with open(filename, 'w', encoding='utf-8') as f:
                 json.dump(self.rules, f, indent=2, ensure_ascii=False)
             return True
-        except Exception as e:
-            print(f"Erreur lors de l'export: {e}")
+            
+        except (OSError, IOError) as e:
+            print(f"Erreur lors de l'export vers {filename}: {e}")
             return False
     
     def import_rules(self, filename: str) -> bool:
-        """Importe des règles depuis un fichier JSON"""
+        """Importe des règles depuis un fichier JSON, incluant les règles multicolonnes et multi-simples.
+        
+        Args:
+            filename (str): Chemin du fichier JSON à importer
+            
+        Returns:
+            bool: True si l'import réussit, False sinon
+        """
         try:
             with open(filename, 'r', encoding='utf-8') as f:
                 imported_rules = json.load(f)
             
+            # Liste des types de règles à importer
+            rule_types = [
+                "simple_rules",
+                "conditional_rules",
+                "multicolumn_rules",
+                "multi_simple_rules"
+            ]
+            
             # Validation et fusion des règles
-            if "simple_rules" in imported_rules:
-                self.rules["simple_rules"].extend(imported_rules["simple_rules"])
-            if "conditional_rules" in imported_rules:
-                self.rules["conditional_rules"].extend(imported_rules["conditional_rules"])
-            if "multicolumn_rules" in imported_rules:
-                self.rules["multicolumn_rules"].extend(imported_rules["multicolumn_rules"])
+            for rule_type in rule_types:
+                if rule_type in imported_rules:
+                    # S'assurer que la liste existe dans self.rules
+                    if rule_type not in self.rules:
+                        self.rules[rule_type] = []
+                    
+                    # Fusionner les règles en évitant les doublons par ID
+                    existing_ids = {rule["id"] for rule in self.rules[rule_type]}
+                    for rule in imported_rules[rule_type]:
+                        if rule["id"] not in existing_ids:
+                            self.rules[rule_type].append(rule)
             
             self._update_metadata()
             self.save_rules()
             return True
-        except Exception as e:
-            print(f"Erreur lors de l'import: {e}")
+            
+        except json.JSONDecodeError as e:
+            print(f"Erreur de format JSON: {e}")
+            return False
+        except KeyError as e:
+            print(f"Structure de règles invalide: {e}")
+            return False
+        except OSError as e:
+            print(f"Erreur d'accès fichier: {e}")
             return False
     
     def _create_default_rules(self):

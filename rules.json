@@ -1,0 +1,319 @@
+{
+  "simple_rules": [
+    {
+      "id": "rule_1_1755183143",
+      "column": "B",
+      "rule_type": "Duplicate",
+      "params": {
+        "trim": false,
+        "caseSensitive": false
+      },
+      "message": "Identifiant en double",
+      "active": true,
+      "created_at": "2025-08-14T16:52:23.951547"
+    },
+    {
+      "id": "rule_2_1755183164",
+      "column": "C",
+      "rule_type": "Duplicate",
+      "params": {
+        "trim": false,
+        "caseSensitive": false
+      },
+      "message": "Code défibrillateur en double",
+      "active": true,
+      "created_at": "2025-08-14T16:52:44.187666"
+    },
+    {
+      "id": "rule_3_1755183246",
+      "column": "D",
+      "rule_type": "Choice",
+      "params": {
+        "trim": true,
+        "choices": [
+          "Actif",
+          "Inactif"
+        ],
+        "caseSensitive": true
+      },
+      "message": "Statut anormal",
+      "active": true,
+      "created_at": "2025-08-14T16:54:06.591812"
+    },
+    {
+      "id": "rule_4_1755521493",
+      "column": "U",
+      "rule_type": "Duplicate",
+      "params": {
+        "trim": true,
+        "caseSensitive": true
+      },
+      "message": "Nom du site peut pas être en double",
+      "active": true,
+      "created_at": "2025-08-18T14:51:33.046681"
+    },
+    {
+      "id": "rule_8_1755522489",
+      "column": "AR",
+      "rule_type": "Choice",
+      "params": {
+        "trim": true,
+        "choices": [
+          "Virement",
+          "Prélèvement",
+          "Chèque",
+          "Virement Chorus"
+        ],
+        "caseSensitive": true
+      },
+      "message": "Type de paiement pas dans la liste",
+      "active": true,
+      "created_at": "2025-08-18T15:08:09.593977"
+    },
+    {
+      "id": "rule_9_1755522543",
+      "column": "AS",
+      "rule_type": "Choice",
+      "params": {
+        "trim": true,
+        "choices": [
+          "Annuelle",
+          "Mensuelle",
+          "Trimestrielle",
+          "0",
+          "Semestrielle"
+        ],
+        "caseSensitive": true
+      },
+      "message": "Périodicité anormale",
+      "active": true,
+      "created_at": "2025-08-18T15:09:03.167392"
+    },
+    {
+      "id": "rule_10_1755522618",
+      "column": "AU",
+      "rule_type": "Choice",
+      "params": {
+        "trim": true,
+        "choices": [
+          "Oui",
+          "Non"
+        ],
+        "caseSensitive": true
+      },
+      "message": "Pas Oui ou Non",
+      "active": true,
+      "created_at": "2025-08-18T15:10:18.300574"
+    },
+    {
+      "id": "rule_12_1755526365",
+      "column": "X",
+      "rule_type": "Regex",
+      "params": {
+        "trim": true,
+        "pattern": "^\\d{5}$"
+      },
+      "message": "Code postale pas au bon format",
+      "active": true,
+      "created_at": "2025-08-18T16:12:45.985128"
+    },
+    {
+      "id": "rule_9_1755527318",
+      "column": "AV",
+      "rule_type": "Regex",
+      "params": {
+        "trim": true,
+        "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}(;\\s*[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})*$"
+      },
+      "message": "Mail facturation au mauvais format",
+      "active": true,
+      "created_at": "2025-08-18T16:28:38.175098"
+    }
+  ],
+  "multi_simple_rules": [
+    {
+      "id": "multi_simple_1_1755179765",
+      "columns": [
+        "B",
+        "C",
+        "E",
+        "F",
+        "S",
+        "U",
+        "W",
+        "X",
+        "Y",
+        "AA",
+        "AH",
+        "AI",
+        "AJ",
+        "AO",
+        "AV",
+        "AW",
+        "AX",
+        "AY"
+      ],
+      "rule_type": "NotBlank",
+      "params": {
+        "trim": false
+      },
+      "message": "Ces colonnes ne peuvent pas être vide (voir fichier export pour plus de détails)",
+      "active": true,
+      "created_at": "2025-08-14T15:56:05.990624"
+    },
+    {
+      "id": "multi_simple_2_1755181358",
+      "columns": [
+        "A",
+        "S",
+        "T",
+        "AO",
+        "AY",
+        "BA",
+        "BB",
+        "BC",
+        "BE",
+        "BR"
+      ],
+      "rule_type": "Date",
+      "params": {
+        "trim": true
+      },
+      "message": "Cette cellule doit être au format date",
+      "active": true,
+      "created_at": "2025-08-14T16:22:38.257687"
+    },
+    {
+      "id": "multi_simple_3_1755183319",
+      "columns": [
+        "I",
+        "J",
+        "K",
+        "L",
+        "N"
+      ],
+      "rule_type": "Choice",
+      "params": {
+        "trim": true,
+        "choices": [
+          "OUI",
+          "NON"
+        ],
+        "caseSensitive": true
+      },
+      "message": "Ce n'est pas un OUI ou NON.",
+      "active": true,
+      "created_at": "2025-08-14T16:55:19.128637"
+    },
+    {
+      "id": "multi_simple_4_1755521260",
+      "columns": [
+        "O",
+        "P"
+      ],
+      "rule_type": "Choice",
+      "params": {
+        "trim": true,
+        "choices": [
+          "Oui",
+          "Non"
+        ],
+        "caseSensitive": true
+      },
+      "message": "Erreur de validation Choice sur plusieurs colonnes",
+      "active": true,
+      "created_at": "2025-08-18T14:47:40.040821"
+    },
+    {
+      "id": "multi_simple_5_1755521429",
+      "columns": [
+        "Q",
+        "R"
+      ],
+      "rule_type": "Choice",
+      "params": {
+        "trim": true,
+        "choices": [
+          "0",
+          "1",
+          "2",
+          "0.083",
+          "3",
+          "4",
+          "1.25"
+        ],
+        "caseSensitive": true
+      },
+      "message": "la durée est anormale",
+      "active": true,
+      "created_at": "2025-08-18T14:50:29.908974"
+    }
+  ],
+  "conditional_rules": [
+    {
+      "id": "cond_1_1755526953",
+      "conditions": [
+        {
+          "column": "AD",
+          "operator": "is_empty",
+          "value": ""
+        }
+      ],
+      "actions": [
+        {
+          "column": "AF",
+          "type": "must_match_pattern",
+          "params": {
+            "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}(;\\s*[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})*$"
+          }
+        }
+      ],
+      "logic": "AND",
+      "message": "Erreur dans contacts installation ",
+      "active": true,
+      "created_at": "2025-08-18T16:22:33.756478"
+    },
+    {
+      "id": "cond_2_1755526977",
+      "conditions": [
+        {
+          "column": "AF",
+          "operator": "is_empty",
+          "value": ""
+        }
+      ],
+      "actions": [
+        {
+          "column": "AD",
+          "type": "must_match_pattern",
+          "params": {
+            "pattern": "^\\+[0-9]{6,15}$"
+          }
+        }
+      ],
+      "logic": "AND",
+      "message": "Erreur dans contacts installation ",
+      "active": true,
+      "created_at": "2025-08-18T16:22:57.217971"
+    }
+  ],
+  "multicolumn_rules": [
+    {
+      "id": "multi_1_1755522377",
+      "columns": [
+        "AO",
+        "S"
+      ],
+      "rule_type": "date_after",
+      "params": {},
+      "message": "Date fin de contrat plus petit que date installation",
+      "active": true,
+      "created_at": "2025-08-18T15:06:17.154003"
+    }
+  ],
+  "metadata": {
+    "created_at": "2025-08-18T14:46:07.108761",
+    "version": "2.0",
+    "last_modified": "2025-08-18T16:28:38.175118"
+  }
+}
