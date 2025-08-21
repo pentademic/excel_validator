@@ -109,9 +109,9 @@ class ExcelValidatorCore:
         """Valide une valeur selon une règle simple (réutilise la logique existante)"""
         try:
             # Appliquer le trim si nécessaire
+            
             if params.get("trim", False) and isinstance(value, str):
                 value = value.strip()
-            
             if rule_type == "NotBlank":
                 return self._validate_not_blank(value, params)
             elif rule_type == "Length":
@@ -400,7 +400,6 @@ class ExcelValidatorCore:
         if str(condition_cell_value) != str(condition_value):
             return True  # Condition non remplie, pas d'erreur
         
-        # Calculer la somme
         try:
             nums = []
             for val in values:
@@ -477,18 +476,28 @@ class ExcelValidatorCore:
             return False
     
     def _parse_date(self, value: Any) -> Optional[datetime]:
-        """Parse une valeur en date"""
+        """Parse une valeur en date avec gestion améliorée"""
         if value is None or value == "":
             return None
             
         if isinstance(value, datetime):
             return value
             
+        # ✅ AJOUT: Gestion des objets date Excel
+        if hasattr(value, 'date') and callable(getattr(value, 'date')):
+            return value
+        
         if isinstance(value, str):
             # Essayer différents formats de date
             date_formats = [
-                "%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", 
-                "%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M:%S"
+                "%Y-%m-%d",           # 2023-01-15
+                "%d/%m/%Y",           # 15/01/2023  
+                "%m/%d/%Y",           # 01/15/2023
+                "%Y-%m-%d %H:%M:%S",  # 2023-01-15 10:30:00
+                "%d/%m/%Y %H:%M:%S",  # 15/01/2023 10:30:00
+                "%Y%m%d",             # 20230115
+                "%d-%m-%Y",           # 15-01-2023
+                "%m-%d-%Y"            # 01-15-2023
             ]
             
             for fmt in date_formats:
@@ -624,15 +633,14 @@ class ExcelValidatorCore:
     def _validate_worksheet(self, ws, validators: Dict, default_validator: Optional[Dict], 
                           excludes: List[str], header_row: Any):
         """Valide une feuille de calcul avec les règles simples"""
-        header_found = header_row is True
+        start_row = 2 if header_row is True else 1
         
         for row_idx, row in enumerate(ws.iter_rows(values_only=True), 1):
-            if all(cell is None or cell == "" for cell in row):
-                continue
             
-            if not header_found and header_row != True:
-                if header_row in row:
-                    header_found = True
+            if row_idx < start_row:
+                continue
+                
+            if all(cell is None or cell == "" for cell in row):
                 continue
             
             for col_idx, value in enumerate(row, 1):

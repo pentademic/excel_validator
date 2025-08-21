@@ -116,18 +116,6 @@
       "message": "Code postale pas au bon format",
       "active": true,
       "created_at": "2025-08-18T16:12:45.985128"
-    },
-    {
-      "id": "rule_9_1755527318",
-      "column": "AV",
-      "rule_type": "Regex",
-      "params": {
-        "trim": true,
-        "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}(;\\s*[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})*$"
-      },
-      "message": "Mail facturation au mauvais format",
-      "active": true,
-      "created_at": "2025-08-18T16:28:38.175098"
     }
   ],
   "multi_simple_rules": [
@@ -251,7 +239,7 @@
   ],
   "conditional_rules": [
     {
-      "id": "cond_1_1755526953",
+      "id": "cond_1_1755765394",
       "conditions": [
         {
           "column": "AD",
@@ -262,19 +250,17 @@
       "actions": [
         {
           "column": "AF",
-          "type": "must_match_pattern",
-          "params": {
-            "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}(;\\s*[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})*$"
-          }
+          "type": "must_not_be_empty",
+          "params": {}
         }
       ],
       "logic": "AND",
-      "message": "Erreur dans contacts installation ",
+      "message": "il n'y a pas de contact installation",
       "active": true,
-      "created_at": "2025-08-18T16:22:33.756478"
+      "created_at": "2025-08-21T10:36:34.137642"
     },
     {
-      "id": "cond_2_1755526977",
+      "id": "cond_2_1755765402",
       "conditions": [
         {
           "column": "AF",
@@ -285,16 +271,14 @@
       "actions": [
         {
           "column": "AD",
-          "type": "must_match_pattern",
-          "params": {
-            "pattern": "^\\+[0-9]{6,15}$"
-          }
+          "type": "must_not_be_empty",
+          "params": {}
         }
       ],
       "logic": "AND",
-      "message": "Erreur dans contacts installation ",
+      "message": "il n'y a pas de contact installation",
       "active": true,
-      "created_at": "2025-08-18T16:22:57.217971"
+      "created_at": "2025-08-21T10:36:42.050110"
     }
   ],
   "multicolumn_rules": [
@@ -312,8 +296,8 @@
     }
   ],
   "metadata": {
-    "created_at": "2025-08-18T14:46:07.108761",
+    "created_at": "2025-08-20T13:42:57.833438",
     "version": "2.0",
-    "last_modified": "2025-08-18T16:28:38.175118"
+    "last_modified": "2025-08-21T10:36:42.050118"
   }
 }
